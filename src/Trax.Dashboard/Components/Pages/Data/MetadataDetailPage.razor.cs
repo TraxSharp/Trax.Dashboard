@@ -130,7 +130,7 @@ public partial class MetadataDetailPage
             var deserializedInput = JsonSerializer.Deserialize(
                 _metadata.Input,
                 registration.InputType,
-                Trax.CoreJsonSerializationOptions.ManifestProperties
+                TraxJsonSerializationOptions.ManifestProperties
             );
 
             if (deserializedInput is null)
@@ -142,7 +142,7 @@ public partial class MetadataDetailPage
             var serializedInput = JsonSerializer.Serialize(
                 deserializedInput,
                 registration.InputType,
-                Trax.CoreJsonSerializationOptions.ManifestProperties
+                TraxJsonSerializationOptions.ManifestProperties
             );
 
             var entry = WorkQueue.Create(
@@ -165,7 +165,7 @@ public partial class MetadataDetailPage
                 duration: 4000
             );
 
-            Navigation.NavigateTo($"chainsharp/data/work-queue/{entry.Id}");
+            Navigation.NavigateTo($"trax/data/work-queue/{entry.Id}");
         }
         catch (JsonException je)
         {

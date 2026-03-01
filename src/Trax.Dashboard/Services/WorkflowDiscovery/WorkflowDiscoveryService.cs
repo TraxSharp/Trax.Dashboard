@@ -32,7 +32,7 @@ public class WorkflowDiscoveryService : IWorkflowDiscoveryService
                 continue;
 
             // Skip concrete type registrations from the dual-registration pattern
-            // (AddScopedTrax.CoreRoute registers both TImplementation and TService)
+            // (AddScopedTraxRoute registers both TImplementation and TService)
             if (descriptor.ImplementationFactory != null && !serviceType.IsInterface)
                 continue;
 

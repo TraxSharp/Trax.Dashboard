@@ -1,4 +1,4 @@
-using Trax.Effect.Configuration.Trax.CoreEffectBuilder;
+using Trax.Effect.Configuration.TraxEffectBuilder;
 using Trax.Scheduler.Configuration;
 using Trax.Scheduler.Extensions;
 using Trax.Scheduler.Services.Scheduling;
@@ -12,13 +12,13 @@ namespace Trax.Dashboard.Tests.Integration;
 public class InferredSchedulingApiTests
 {
     private IServiceCollection _services = null!;
-    private Trax.CoreEffectConfigurationBuilder _parentBuilder = null!;
+    private TraxEffectConfigurationBuilder _parentBuilder = null!;
 
     [SetUp]
     public void SetUp()
     {
         _services = new ServiceCollection();
-        _parentBuilder = new Trax.CoreEffectConfigurationBuilder(_services);
+        _parentBuilder = new TraxEffectConfigurationBuilder(_services);
     }
 
     #region Single-type-param: Schedule, Include, ThenInclude

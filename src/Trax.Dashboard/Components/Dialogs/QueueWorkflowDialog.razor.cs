@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Trax.Effect.Configuration.Trax.CoreEffectConfiguration;
+using Trax.Effect.Configuration.TraxEffectConfiguration;
 using Trax.Dashboard.Services.WorkflowDiscovery;
 using Trax.Effect.Data.Services.IDataContextFactory;
 using Trax.Effect.Models.WorkQueue;
@@ -74,7 +74,7 @@ public partial class QueueWorkflowDialog
                     : JsonSerializer.Deserialize(
                         _jsonInput,
                         Registration.InputType,
-                        Trax.CoreEffectConfiguration.StaticSystemJsonSerializerOptions
+                        TraxEffectConfiguration.StaticSystemJsonSerializerOptions
                     );
 
             if (input is null)
@@ -87,7 +87,7 @@ public partial class QueueWorkflowDialog
             var serializedInput = JsonSerializer.Serialize(
                 input,
                 Registration.InputType,
-                Trax.CoreJsonSerializationOptions.ManifestProperties
+                TraxJsonSerializationOptions.ManifestProperties
             );
 
             var entry = WorkQueue.Create(
@@ -107,7 +107,7 @@ public partial class QueueWorkflowDialog
             await dataContext.SaveChanges(CancellationToken.None);
 
             DialogService.Close();
-            Navigation.NavigateTo($"chainsharp/data/work-queue/{entry.Id}");
+            Navigation.NavigateTo($"trax/data/work-queue/{entry.Id}");
         }
         catch (JsonException je)
         {

@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Trax.Effect.Configuration.Trax.CoreEffectConfiguration;
+using Trax.Effect.Configuration.TraxEffectConfiguration;
 using Trax.Dashboard.Services.WorkflowDiscovery;
 using Trax.Effect.Data.Services.IDataContextFactory;
 using Trax.Effect.Models.Metadata;
@@ -76,7 +76,7 @@ public partial class RunWorkflowDialog
                     : JsonSerializer.Deserialize(
                         _jsonInput,
                         Registration.InputType,
-                        Trax.CoreEffectConfiguration.StaticSystemJsonSerializerOptions
+                        TraxEffectConfiguration.StaticSystemJsonSerializerOptions
                     );
 
             if (input is null)
@@ -104,7 +104,7 @@ public partial class RunWorkflowDialog
             await BackgroundTaskServer.EnqueueAsync(metadata.Id, input);
 
             DialogService.Close();
-            Navigation.NavigateTo($"chainsharp/data/metadata/{metadata.Id}");
+            Navigation.NavigateTo($"trax/data/metadata/{metadata.Id}");
         }
         catch (JsonException je)
         {

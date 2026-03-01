@@ -17,11 +17,11 @@ public class WorkflowBusIntegrationTests
         // Arrange — register workflows via assembly scanning (as in a real app)
         var services = new ServiceCollection();
 
-        services.AddTrax.CoreEffects(
+        services.AddTraxEffects(
             o => o.AddServiceTrainBus(assemblies: [typeof(FakeWorkflowA).Assembly])
         );
 
-        services.AddTrax.CoreDashboard();
+        services.AddTraxDashboard();
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();

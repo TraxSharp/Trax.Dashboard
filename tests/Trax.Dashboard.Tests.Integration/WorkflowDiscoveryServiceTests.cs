@@ -36,13 +36,13 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_SingleWorkflow_ReturnsRegistrations()
     {
         // Arrange
-        // AddScopedTrax.CoreRoute registers two DI descriptors:
+        // AddScopedTraxRoute registers two DI descriptors:
         //   1. AddScoped<FakeWorkflowA>() — concrete type
         //   2. AddScoped<IFakeWorkflowA>(factory) — interface with factory
         // The discovery service sees both as separate registrations because
         // the factory-based descriptor has no ImplementationType, so the dedup
         // GroupBy(ImplementationType) places them in different groups.
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -67,9 +67,9 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_MultipleWorkflows_ReturnsAll()
     {
         // Arrange
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowB, FakeWorkflowB>();
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowC, FakeWorkflowC>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowB, FakeWorkflowB>();
+        _services.AddScopedTraxRoute<IFakeWorkflowC, FakeWorkflowC>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -92,10 +92,10 @@ public class WorkflowDiscoveryServiceTests
     [Test]
     public void DiscoverWorkflows_DeduplicatesDualRegistration_ReturnsOnePerWorkflow()
     {
-        // AddScopedTrax.CoreRoute registers both the concrete type (AddScoped<T>)
+        // AddScopedTraxRoute registers both the concrete type (AddScoped<T>)
         // and the interface (AddScoped<TService>(factory)). The discovery service should
         // deduplicate these into a single registration per workflow.
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -110,7 +110,7 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_PreferInterfaceOverConcreteType()
     {
         // Arrange
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -124,7 +124,7 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_CachesResult()
     {
         // Arrange
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -143,7 +143,7 @@ public class WorkflowDiscoveryServiceTests
         // Arrange
         _services.AddScoped<INotAWorkflow, NotAWorkflow>();
         _services.AddSingleton("just a string");
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -159,7 +159,7 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_CorrectLifetime_Scoped()
     {
         // Arrange
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -177,7 +177,7 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_CorrectLifetime_Transient()
     {
         // Arrange
-        _services.AddTransientTrax.CoreRoute<IFakeWorkflowB, FakeWorkflowB>();
+        _services.AddTransientTraxRoute<IFakeWorkflowB, FakeWorkflowB>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -197,7 +197,7 @@ public class WorkflowDiscoveryServiceTests
     public void DiscoverWorkflows_CorrectLifetime_Singleton()
     {
         // Arrange
-        _services.AddSingletonTrax.CoreRoute<IFakeWorkflowC, FakeWorkflowC>();
+        _services.AddSingletonTraxRoute<IFakeWorkflowC, FakeWorkflowC>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -221,7 +221,7 @@ public class WorkflowDiscoveryServiceTests
     public void GetFriendlyTypeName_NonGenericType_ReturnsName()
     {
         // Arrange
-        _services.AddScopedTrax.CoreRoute<IFakeWorkflowA, FakeWorkflowA>();
+        _services.AddScopedTraxRoute<IFakeWorkflowA, FakeWorkflowA>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act
@@ -236,7 +236,7 @@ public class WorkflowDiscoveryServiceTests
     public void GetFriendlyTypeName_GenericType_ReturnsFormattedName()
     {
         // Arrange
-        _services.AddScopedTrax.CoreRoute<IFakeGenericWorkflow, FakeGenericWorkflow>();
+        _services.AddScopedTraxRoute<IFakeGenericWorkflow, FakeGenericWorkflow>();
         var discoveryService = new WorkflowDiscoveryService(_services);
 
         // Act

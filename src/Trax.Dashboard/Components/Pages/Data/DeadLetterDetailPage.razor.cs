@@ -103,7 +103,7 @@ public partial class DeadLetterDetailPage
                 var deserializedInput = JsonSerializer.Deserialize(
                     manifest.Properties,
                     registration.InputType,
-                    Trax.CoreJsonSerializationOptions.ManifestProperties
+                    TraxJsonSerializationOptions.ManifestProperties
                 );
 
                 if (deserializedInput is not null)
@@ -111,7 +111,7 @@ public partial class DeadLetterDetailPage
                     serializedInput = JsonSerializer.Serialize(
                         deserializedInput,
                         registration.InputType,
-                        Trax.CoreJsonSerializationOptions.ManifestProperties
+                        TraxJsonSerializationOptions.ManifestProperties
                     );
                     inputTypeName = registration.InputType.FullName;
                 }
@@ -156,7 +156,7 @@ public partial class DeadLetterDetailPage
                 duration: 4000
             );
 
-            Navigation.NavigateTo($"chainsharp/data/work-queue/{entry.Id}");
+            Navigation.NavigateTo($"trax/data/work-queue/{entry.Id}");
         }
         catch (JsonException je)
         {

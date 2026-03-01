@@ -52,8 +52,8 @@ public partial class ManifestGroupDetailPage
     private int _inProgressCount;
 
     // ── Grid references for server-side reload ──
-    private Trax.CoreDataGrid<Manifest>? _manifestsGrid;
-    private Trax.CoreDataGrid<Metadata>? _executionsGrid;
+    private TraxDataGrid<Manifest>? _manifestsGrid;
+    private TraxDataGrid<Metadata>? _executionsGrid;
 
     // ── Settings dirty tracking ──
     private int? _savedMaxActiveJobs;
@@ -476,6 +476,6 @@ public partial class ManifestGroupDetailPage
 
     private void OnDagNodeClick(long groupId)
     {
-        Navigation.NavigateTo($"chainsharp/data/manifest-groups/{groupId}");
+        Navigation.NavigateTo($"trax/data/manifest-groups/{groupId}");
     }
 }
