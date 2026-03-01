@@ -1,15 +1,15 @@
-using Trax.Dashboard.Components;
-using Trax.Dashboard.Configuration;
-using Trax.Dashboard.Services.DashboardSettings;
-using Trax.Dashboard.Services.LocalStorage;
-using Trax.Dashboard.Services.ThemeState;
-using Trax.Dashboard.Services.WorkflowDiscovery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Radzen;
+using Trax.Dashboard.Components;
+using Trax.Dashboard.Configuration;
+using Trax.Dashboard.Services.DashboardSettings;
+using Trax.Dashboard.Services.LocalStorage;
+using Trax.Dashboard.Services.ThemeState;
+using Trax.Dashboard.Services.WorkflowDiscovery;
 
 namespace Trax.Dashboard.Extensions;
 

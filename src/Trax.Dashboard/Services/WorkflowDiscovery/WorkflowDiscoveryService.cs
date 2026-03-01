@@ -1,5 +1,5 @@
-using Trax.Effect.Services.ServiceTrain;
 using Microsoft.Extensions.DependencyInjection;
+using Trax.Effect.Services.ServiceTrain;
 
 namespace Trax.Dashboard.Services.WorkflowDiscovery;
 
@@ -98,8 +98,8 @@ public class WorkflowDiscoveryService : IWorkflowDiscoveryService
             return type;
 
         return type.GetInterfaces()
-            .FirstOrDefault(
-                i => i.IsGenericType && i.GetGenericTypeDefinition() == serviceTrainType
+            .FirstOrDefault(i =>
+                i.IsGenericType && i.GetGenericTypeDefinition() == serviceTrainType
             );
     }
 

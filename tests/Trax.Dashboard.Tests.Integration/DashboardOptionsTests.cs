@@ -1,5 +1,5 @@
-using Trax.Dashboard.Configuration;
 using FluentAssertions;
+using Trax.Dashboard.Configuration;
 
 namespace Trax.Dashboard.Tests.Integration;
 

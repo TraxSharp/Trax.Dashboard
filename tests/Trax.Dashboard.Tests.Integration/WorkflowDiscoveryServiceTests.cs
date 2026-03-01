@@ -1,8 +1,8 @@
-using Trax.Dashboard.Services.WorkflowDiscovery;
-using Trax.Effect.Extensions;
-using Trax.Dashboard.Tests.Integration.Fakes;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Trax.Dashboard.Services.WorkflowDiscovery;
+using Trax.Dashboard.Tests.Integration.Fakes;
+using Trax.Effect.Extensions;
 
 namespace Trax.Dashboard.Tests.Integration;
 
@@ -52,11 +52,10 @@ public class WorkflowDiscoveryServiceTests
         result.Should().HaveCountGreaterThanOrEqualTo(1);
         result
             .Should()
-            .OnlyContain(
-                r =>
-                    r.InputType == typeof(FakeInputA)
-                    && r.OutputType == typeof(string)
-                    && r.Lifetime == ServiceLifetime.Scoped
+            .OnlyContain(r =>
+                r.InputType == typeof(FakeInputA)
+                && r.OutputType == typeof(string)
+                && r.Lifetime == ServiceLifetime.Scoped
             );
 
         // The interface-based registration should be present
@@ -168,8 +167,8 @@ public class WorkflowDiscoveryServiceTests
         // Assert
         result
             .Should()
-            .Contain(
-                r => r.ServiceType == typeof(IFakeWorkflowA) && r.Lifetime == ServiceLifetime.Scoped
+            .Contain(r =>
+                r.ServiceType == typeof(IFakeWorkflowA) && r.Lifetime == ServiceLifetime.Scoped
             );
     }
 
@@ -186,10 +185,8 @@ public class WorkflowDiscoveryServiceTests
         // Assert
         result
             .Should()
-            .Contain(
-                r =>
-                    r.ServiceType == typeof(IFakeWorkflowB)
-                    && r.Lifetime == ServiceLifetime.Transient
+            .Contain(r =>
+                r.ServiceType == typeof(IFakeWorkflowB) && r.Lifetime == ServiceLifetime.Transient
             );
     }
 
@@ -206,10 +203,8 @@ public class WorkflowDiscoveryServiceTests
         // Assert
         result
             .Should()
-            .Contain(
-                r =>
-                    r.ServiceType == typeof(IFakeWorkflowC)
-                    && r.Lifetime == ServiceLifetime.Singleton
+            .Contain(r =>
+                r.ServiceType == typeof(IFakeWorkflowC) && r.Lifetime == ServiceLifetime.Singleton
             );
     }
 

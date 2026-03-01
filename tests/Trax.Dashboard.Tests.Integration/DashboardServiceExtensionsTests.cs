@@ -1,8 +1,8 @@
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Trax.Dashboard.Configuration;
 using Trax.Dashboard.Extensions;
 using Trax.Dashboard.Services.WorkflowDiscovery;
-using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Trax.Dashboard.Tests.Integration;
 
