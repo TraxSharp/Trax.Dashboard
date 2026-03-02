@@ -76,8 +76,10 @@ public partial class ServerSettingsPage
         && (
             _pollingInterval.ToTimeSpan() != _savedPollingInterval
             || _schedulerConfig!.MaxActiveJobs != _savedMaxActiveJobs
-            || (_taskServerOptions is not null
-                && _taskServerOptions.WorkerCount != _savedWorkerCount)
+            || (
+                _taskServerOptions is not null
+                && _taskServerOptions.WorkerCount != _savedWorkerCount
+            )
         );
 
     private bool IsRetryDirty =>
