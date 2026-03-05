@@ -16,7 +16,7 @@ public partial class ServerSettingsPage
 
     // ── Scheduler state ──
     private SchedulerConfiguration? _schedulerConfig;
-    private PostgresTaskServerOptions? _taskServerOptions;
+    private LocalWorkerOptions? _localWorkerOptions;
     private bool _schedulerAvailable;
 
     private TimeSpanField _pollingInterval = new();
@@ -77,8 +77,8 @@ public partial class ServerSettingsPage
             _pollingInterval.ToTimeSpan() != _savedPollingInterval
             || _schedulerConfig!.MaxActiveJobs != _savedMaxActiveJobs
             || (
-                _taskServerOptions is not null
-                && _taskServerOptions.WorkerCount != _savedWorkerCount
+                _localWorkerOptions is not null
+                && _localWorkerOptions.WorkerCount != _savedWorkerCount
             )
         );
 
@@ -123,7 +123,7 @@ public partial class ServerSettingsPage
     {
         // Scheduler
         _schedulerConfig = ServiceProvider.GetService<SchedulerConfiguration>();
-        _taskServerOptions = ServiceProvider.GetService<PostgresTaskServerOptions>();
+        _localWorkerOptions = ServiceProvider.GetService<LocalWorkerOptions>();
         _schedulerAvailable = _schedulerConfig is not null;
 
         if (_schedulerAvailable)
@@ -209,8 +209,8 @@ public partial class ServerSettingsPage
         _schedulerConfig.DeadLetterRetentionPeriod = TimeSpan.FromDays(30);
         _schedulerConfig.AutoPurgeDeadLetters = true;
 
-        if (_taskServerOptions is not null)
-            _taskServerOptions.WorkerCount = Environment.ProcessorCount;
+        if (_localWorkerOptions is not null)
+            _localWorkerOptions.WorkerCount = Environment.ProcessorCount;
 
         if (_schedulerConfig.MetadataCleanup is not null)
         {
@@ -237,8 +237,8 @@ public partial class ServerSettingsPage
         _savedDeadLetterRetentionPeriod = _schedulerConfig.DeadLetterRetentionPeriod;
         _savedAutoPurgeDeadLetters = _schedulerConfig.AutoPurgeDeadLetters;
 
-        if (_taskServerOptions is not null)
-            _savedWorkerCount = _taskServerOptions.WorkerCount;
+        if (_localWorkerOptions is not null)
+            _savedWorkerCount = _localWorkerOptions.WorkerCount;
 
         if (_schedulerConfig.MetadataCleanup is not null)
         {
