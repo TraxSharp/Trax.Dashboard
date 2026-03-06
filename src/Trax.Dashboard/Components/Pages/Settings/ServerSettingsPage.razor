@@ -138,6 +138,17 @@
                 </RadzenStack>
 
                 <RadzenStack Gap="0.25rem">
+                    <RadzenLabel Text="Stale Pending Timeout" Component="StalePendingTimeout" />
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-disabled-color);">
+                        Duration after which a Pending job that was never picked up by a worker is automatically failed. Catches dispatch failures and unreachable remote workers.
+                    </RadzenText>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center" Style="max-width: 400px;">
+                        <RadzenNumeric @bind-Value="_stalePendingTimeout.Value" TValue="double" Min="1" Style="width: 60%" Name="StalePendingTimeout" />
+                        <RadzenDropDown @bind-Value="_stalePendingTimeout.Unit" Data="TimeUnits" Style="width: 40%" />
+                    </RadzenStack>
+                </RadzenStack>
+
+                <RadzenStack Gap="0.25rem">
                     <RadzenLabel Text="Recover Stuck Jobs on Startup" />
                     <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-disabled-color);">
                         Re-evaluate and requeue jobs that were still in-progress when the application last shut down.

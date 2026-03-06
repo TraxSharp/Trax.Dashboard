@@ -23,6 +23,7 @@ public partial class ServerSettingsPage
     private TimeSpanField _defaultRetryDelay = new();
     private TimeSpanField _maxRetryDelay = new();
     private TimeSpanField _defaultJobTimeout = new();
+    private TimeSpanField _stalePendingTimeout = new();
     private TimeSpanField _deadLetterRetentionPeriod = new();
     private TimeSpanField _cleanupInterval = new();
     private TimeSpanField _cleanupRetentionPeriod = new();
@@ -40,6 +41,7 @@ public partial class ServerSettingsPage
     private double _savedRetryBackoffMultiplier;
     private TimeSpan _savedMaxRetryDelay;
     private TimeSpan _savedDefaultJobTimeout;
+    private TimeSpan _savedStalePendingTimeout;
     private bool _savedRecoverStuckJobsOnStartup;
     private TimeSpan _savedDeadLetterRetentionPeriod;
     private bool _savedAutoPurgeDeadLetters;
@@ -95,6 +97,7 @@ public partial class ServerSettingsPage
         _schedulerAvailable
         && (
             _defaultJobTimeout.ToTimeSpan() != _savedDefaultJobTimeout
+            || _stalePendingTimeout.ToTimeSpan() != _savedStalePendingTimeout
             || _schedulerConfig!.RecoverStuckJobsOnStartup != _savedRecoverStuckJobsOnStartup
         );
 
@@ -154,6 +157,7 @@ public partial class ServerSettingsPage
         _defaultRetryDelay = TimeSpanField.FromTimeSpan(_schedulerConfig.DefaultRetryDelay);
         _maxRetryDelay = TimeSpanField.FromTimeSpan(_schedulerConfig.MaxRetryDelay);
         _defaultJobTimeout = TimeSpanField.FromTimeSpan(_schedulerConfig.DefaultJobTimeout);
+        _stalePendingTimeout = TimeSpanField.FromTimeSpan(_schedulerConfig.StalePendingTimeout);
         _deadLetterRetentionPeriod = TimeSpanField.FromTimeSpan(
             _schedulerConfig.DeadLetterRetentionPeriod
         );
@@ -179,6 +183,7 @@ public partial class ServerSettingsPage
         _schedulerConfig.DefaultRetryDelay = _defaultRetryDelay.ToTimeSpan();
         _schedulerConfig.MaxRetryDelay = _maxRetryDelay.ToTimeSpan();
         _schedulerConfig.DefaultJobTimeout = _defaultJobTimeout.ToTimeSpan();
+        _schedulerConfig.StalePendingTimeout = _stalePendingTimeout.ToTimeSpan();
         _schedulerConfig.DeadLetterRetentionPeriod = _deadLetterRetentionPeriod.ToTimeSpan();
 
         if (_schedulerConfig.MetadataCleanup is not null)
@@ -205,6 +210,7 @@ public partial class ServerSettingsPage
         _schedulerConfig.RetryBackoffMultiplier = 2.0;
         _schedulerConfig.MaxRetryDelay = TimeSpan.FromHours(1);
         _schedulerConfig.DefaultJobTimeout = TimeSpan.FromMinutes(20);
+        _schedulerConfig.StalePendingTimeout = TimeSpan.FromMinutes(20);
         _schedulerConfig.RecoverStuckJobsOnStartup = true;
         _schedulerConfig.DeadLetterRetentionPeriod = TimeSpan.FromDays(30);
         _schedulerConfig.AutoPurgeDeadLetters = true;
@@ -233,6 +239,7 @@ public partial class ServerSettingsPage
         _savedRetryBackoffMultiplier = _schedulerConfig.RetryBackoffMultiplier;
         _savedMaxRetryDelay = _schedulerConfig.MaxRetryDelay;
         _savedDefaultJobTimeout = _schedulerConfig.DefaultJobTimeout;
+        _savedStalePendingTimeout = _schedulerConfig.StalePendingTimeout;
         _savedRecoverStuckJobsOnStartup = _schedulerConfig.RecoverStuckJobsOnStartup;
         _savedDeadLetterRetentionPeriod = _schedulerConfig.DeadLetterRetentionPeriod;
         _savedAutoPurgeDeadLetters = _schedulerConfig.AutoPurgeDeadLetters;
