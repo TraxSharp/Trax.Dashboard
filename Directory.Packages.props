@@ -38,7 +38,7 @@
   <!-- Third-party packages, pinned to exact versions. -->
   <ItemGroup>
     <PackageVersion Include="DotNet.ReproducibleBuilds" Version="2.0.2" />
-    <PackageVersion Include="bunit" Version="1.40.0" />
+    <PackageVersion Include="bunit" Version="2.7.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="FluentAssertions" Version="8.8.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
