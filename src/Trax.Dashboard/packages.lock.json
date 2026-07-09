@@ -4,15 +4,15 @@
     "net10.0": {
       "DotNet.ReproducibleBuilds": {
         "type": "Direct",
-        "requested": "[2.0.2, )",
-        "resolved": "2.0.2",
-        "contentHash": "VaHoEN6YHp0jXucxm67vfuRy8zo9ufiKSuaZ4ZudRi8xmWcEFMKxfCsg2nvYNvdISFTURDu+IHqADGh53+Bamw=="
+        "requested": "[2.0.5, )",
+        "resolved": "2.0.5",
+        "contentHash": "8LrlvI1KpjjJ4VGSqZ16yoOCKlQnYS+Y8rYNifNrscmVh5anJcF9E4e0NiDP30BHBMUbkoJ5KdcxoRWM7Pz9Aw=="
       },
       "Radzen.Blazor": {
         "type": "Direct",
         "requested": "[11.*, )",
-        "resolved": "11.1.0",
-        "contentHash": "brQCciUSVqNwzkYECVWaJZKHgXlC9CqtsmUiPVbMzRekBzswNW1teymOZm/IwnoFpIvB1xxR/HXTWFGDzHBPnw=="
+        "resolved": "11.1.2",
+        "contentHash": "m4/SKWjIAniY/IktzRMxYM2HMYV96IsBsy2F0B4vKzWyneki05HA8jPxzT3vR/fG3tUMjIR/SnRO9Aw6V4n97A=="
       },
       "Trax.Api.GraphQL.PersistedOperations": {
         "type": "Direct",
