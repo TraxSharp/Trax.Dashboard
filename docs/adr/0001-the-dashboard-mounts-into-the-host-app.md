@@ -47,18 +47,18 @@ behaviour, it can only refuse.
 
 ## Exemplars
 
-- `DashboardServiceExtensionsTests` pins the registration contract: the options that land,
-  the defaults (`/trax`), and that the dashboard registers **no** train discovery of its own
-  and therefore depends on the host's `AddTrax()` for it.
+- `DashboardServiceExtensionsTests` pins the registration half: the options that land, the
+  defaults (`/trax`), the scoped services, that the dashboard registers **no** train
+  discovery of its own and therefore depends on the host's `AddTrax()` for it, and that the
+  `TraxMarker` precondition throws with a message naming the call to add.
 
-Not covered, and both gaps are in the part that touches the host:
-
-- Nothing tests the `TraxMarker` precondition actually throwing. The check is one `if` and
-  no test would notice if it were deleted.
-- Nothing asserts what `UseTraxDashboard()` does to the pipeline. A change to the middleware
-  it adds, or the order it adds them in, is invisible to the suite and visible to every
-  consumer.
+Not covered: **nothing asserts what `UseTraxDashboard()` does to the host's pipeline.** The
+suite covers `AddTraxDashboard` and stops there. A change to the middleware it adds, or to
+the order it adds it in, is invisible here and visible to every consumer, which is the half
+of this decision that reaches furthest into somebody else's application.
 
 ## Changelog
 
+- **2026-09-11**: Corrected a false gap: the TraxMarker precondition is tested, including
+  that its message names the call to add. Only the UseTraxDashboard half is uncovered.
 - **2026-09-11**: Recorded.

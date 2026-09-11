@@ -44,11 +44,11 @@ not to record. The format is
 ## Guards
 
 `tests/Trax.Dashboard.Tests.Meta/` holds ten convention guards, and **all ten are shared**
-with the other repos. This repo owns no convention guard of its own, and the gaps that
-matters for are named in the `## Exemplars` section of
-[0001](./docs/adr/0001-the-dashboard-mounts-into-the-host-app.md): nothing tests the
-`AddTrax()` precondition, and nothing asserts what `UseTraxDashboard()` does to the host's
-middleware pipeline.
+with the other repos. This repo owns no convention guard of its own. The gap that
+matters is named in the `## Exemplars` section of
+[0001](./docs/adr/0001-the-dashboard-mounts-into-the-host-app.md): the registration half is
+covered, and nothing asserts what `UseTraxDashboard()` does to the host's middleware
+pipeline.
 
 The census (every guard credited to an ADR or explicitly opted out) is **not** switched on
 here yet. Trax.Docs runs it over its own guards; this repo will once the shared copies carry
