@@ -60,7 +60,4 @@ of this decision that reaches furthest into somebody else's application.
 
 ## Changelog
 
-- **2026-09-11**: Listed the two side effects the Consequences section had omitted, in a section whose point is enumerating them.
-- **2026-09-11**: Corrected a false gap: the TraxMarker precondition is tested, including
-  that its message names the call to add. Only the UseTraxDashboard half is uncovered.
 - **2026-09-11**: Recorded.
