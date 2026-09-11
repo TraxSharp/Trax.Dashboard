@@ -18,7 +18,7 @@ if your work contradicts one, say so rather than silently overriding it.
 | `AddTraxDashboard` or `UseTraxDashboard` | [0001](./docs/adr/0001-the-dashboard-mounts-into-the-host-app.md), these run inside somebody else's application and change its middleware |
 
 Decisions binding more than one repo live in the central corpus at `Trax.Docs/adr/`, whose
-index lists them by repo. Eight name `dashboard`, including the canonical train name being
+index lists them by repo. Nine name `dashboard`, including the canonical train name being
 the interface FullName, which this repo compares against when it looks a train up. In a
 workspace checkout the index is at `../Trax.Docs/adr/README.md`; that path does not resolve
 on GitHub, because it crosses a repository boundary.
