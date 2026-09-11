@@ -7,6 +7,14 @@ using Trax.Mediator.Services.TrainDiscovery;
 
 namespace Trax.Dashboard.Tests.Integration.UnitTests;
 
+/// <summary>
+/// The registration contract a host depends on when it mounts the dashboard.
+///
+/// <para>The dashboard registers no train discovery of its own, so it relies on the host's
+/// AddTrax() for it. That dependency is the reason the precondition exists.</para>
+///
+/// <para>Enforces <c>docs/adr/0001-the-dashboard-mounts-into-the-host-app.md</c>.</para>
+/// </summary>
 [TestFixture]
 public class DashboardServiceExtensionsTests
 {
@@ -24,7 +32,14 @@ public class DashboardServiceExtensionsTests
         // Assert
         var options = provider.GetService<DashboardOptions>();
         options.Should().NotBeNull();
-        options!.RoutePrefix.Should().Be("/trax");
+        options!
+            .RoutePrefix.Should()
+            .Be(
+                "/trax",
+                "the dashboard mounts inside the host's app at a route prefix, rather than "
+                    + "running as its own deployable. See "
+                    + "docs/adr/0001-the-dashboard-mounts-into-the-host-app.md."
+            );
         options.Title.Should().Be("Trax");
     }
 
