@@ -44,11 +44,15 @@ not to record. The format is
 ## Guards
 
 `tests/Trax.Dashboard.Tests.Meta/` holds ten convention guards, and **all ten are shared**
-with the other repos. This repo owns no convention guard of its own. The gap that
-matters is named in the `## Exemplars` section of
-[0001](./docs/adr/0001-the-dashboard-mounts-into-the-host-app.md): the registration half is
-covered, and nothing asserts what `UseTraxDashboard()` does to the host's middleware
-pipeline.
+with the other repos. This repo owns no convention guard of its own. The gaps that matter are
+named in the `## Exemplars` section of
+[0001](./docs/adr/0001-the-dashboard-mounts-into-the-host-app.md), in descending order of
+reach. The first is not a test gap at all: the dashboard applies no authorization of its own,
+so an unguarded host serves `/trax` to anyone who can reach the port. Then `RoutePrefix`
+moving the sidebar but not the pages; then nothing asserting what `UseTraxDashboard()` does to
+the host's middleware pipeline; then, inside the registration half, nothing exercising the
+`WebApplicationBuilder` overload of `AddTraxDashboard()`, the one its own documentation calls
+recommended and the one that mutates the host outside DI.
 
 The census is on: every guard class under that folder is either credited to an ADR or
 carries `Not ADR-enforcing:` with a reason, and the `adr-guard` job checks it. A new guard is

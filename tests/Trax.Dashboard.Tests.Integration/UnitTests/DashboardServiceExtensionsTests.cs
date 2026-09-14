@@ -10,8 +10,12 @@ namespace Trax.Dashboard.Tests.Integration.UnitTests;
 /// <summary>
 /// The registration contract a host depends on when it mounts the dashboard.
 ///
-/// <para>The dashboard registers no train discovery of its own, so it relies on the host's
-/// AddTrax() for it. That dependency is the reason the precondition exists.</para>
+/// <para>The dashboard registers no train discovery of its own, so it relies on the host
+/// having built a Trax pipeline. The precondition checks the TraxMarker that AddTrax()
+/// registers, which catches a host that never called AddTrax() at all. It does not reach
+/// discovery itself: ITrainDiscoveryService comes from AddMediator(), so AddTrax() with only
+/// AddEffects() passes this check and then fails at render time, because the Trains page and
+/// the metadata detail page both take it as a required injection.</para>
 ///
 /// <para>Enforces <c>docs/adr/0001-the-dashboard-mounts-into-the-host-app.md</c>.</para>
 /// </summary>
@@ -75,7 +79,7 @@ public class DashboardServiceExtensionsTests
         services.AddTraxDashboard();
         using var provider = services.BuildServiceProvider();
 
-        // Dashboard alone should NOT provide these — they come from Mediator
+        // Dashboard alone should NOT provide these: they come from Mediator
         provider.GetService<IServiceCollection>().Should().BeNull();
         provider.GetService<ITrainDiscoveryService>().Should().BeNull();
     }
