@@ -19,6 +19,7 @@ namespace Trax.Dashboard.Tests.Integration.UnitTests;
 ///
 /// <para>Enforces <c>docs/adr/0001-the-dashboard-mounts-into-the-host-app.md</c>.</para>
 /// </summary>
+[Property("adr", "docs/adr/0001-the-dashboard-mounts-into-the-host-app.md")]
 [TestFixture]
 public class DashboardServiceExtensionsTests
 {
