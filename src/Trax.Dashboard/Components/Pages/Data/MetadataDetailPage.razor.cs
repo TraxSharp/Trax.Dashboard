@@ -146,8 +146,8 @@ public partial class MetadataDetailPage
             );
 
             // Through the operations service, which enqueues through the mediator, so the
-            // train's authorization, its OnQueue hook and its subject key apply to a re-queue
-            // exactly as they do to any other enqueue. Writing the row here skipped all three.
+            // train's OnQueue hook, subject key and input cap apply to a re-queue as they do to
+            // any other enqueue. Writing the row here skipped them.
             OperationResult result;
             // The dashboard is the admin surface, gated as a whole by its host, so it enqueues as
             // trusted infrastructure rather than as a user a train's [TraxAuthorize] can check: a

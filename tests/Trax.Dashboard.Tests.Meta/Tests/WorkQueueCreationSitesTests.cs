@@ -6,9 +6,10 @@ namespace Trax.Dashboard.Tests.Meta.Tests;
 
 /// <summary>
 /// The dashboard never builds a work queue row itself. Queueing and re-queueing go through
-/// <c>IOperationsService</c>, which enqueues through the mediator so the train's authorization,
-/// its <c>OnQueue</c> hook and its subject key apply. The re-queue button once wrote the row
-/// directly and skipped all three. Guards
+/// <c>IOperationsService</c>, which enqueues through the mediator so the train's <c>OnQueue</c>
+/// hook, its subject key and the input cap apply; per-train authorization does not, because the
+/// dashboard enqueues as the admin surface its host gates. The re-queue button once wrote the
+/// row directly and skipped all of it. Guards
 /// Trax.Docs/adr/0017-a-callers-enqueue-goes-through-the-mediator.md.
 /// </summary>
 [TestFixture]

@@ -29,6 +29,7 @@ public partial class WorkQueueDetailPage
 
     private WorkQueue? _entry;
     private long? _subjectHeldBy;
+    private long? _subjectQueuedBehind;
     private bool _cancelling;
     private string? _error;
 
@@ -58,6 +59,29 @@ public partial class WorkQueueDetailPage
                 .Select(b => (long?)b.Id)
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
+
+        // Dispatch also offers only the first queued entry per subject each cycle, so an entry
+        // behind an older sibling waits even while nothing for its subject is running.
+        _subjectQueuedBehind =
+            _subjectHeldBy is null
+            && _entry is { Status: WorkQueueStatus.Queued, SubjectKey: { } queuedSubject }
+                ? await context
+                    .WorkQueues.AsNoTracking()
+                    .Where(b =>
+                        b.SubjectKey == queuedSubject
+                        && b.Id != _entry.Id
+                        && b.Status == WorkQueueStatus.Queued
+                        && b.ConfirmedAt != null
+                        && (
+                            b.Priority > _entry.Priority
+                            || (b.Priority == _entry.Priority && b.CreatedAt < _entry.CreatedAt)
+                        )
+                    )
+                    .OrderByDescending(b => b.Priority)
+                    .ThenBy(b => b.CreatedAt)
+                    .Select(b => (long?)b.Id)
+                    .FirstOrDefaultAsync(cancellationToken)
+                : null;
     }
 
     private async Task CancelEntry()

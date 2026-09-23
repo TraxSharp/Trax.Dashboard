@@ -75,6 +75,10 @@
                 {
                     <FieldDisplay Label="Waiting On" Value="@($"Entry {heldBy}, which is running for the same subject")" />
                 }
+                else if (_subjectQueuedBehind is { } behind)
+                {
+                    <FieldDisplay Label="Waiting On" Value="@($"Entry {behind}, which is ahead of it for the same subject")" />
+                }
                 <FieldDisplay Label="Input Type" Value="@(_entry.InputTypeName ?? "—")" />
             </RadzenStack>
         </RadzenColumn>
