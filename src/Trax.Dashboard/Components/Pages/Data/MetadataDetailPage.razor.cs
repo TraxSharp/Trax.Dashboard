@@ -11,6 +11,7 @@ using Trax.Effect.Models.Log;
 using Trax.Effect.Models.Metadata;
 using Trax.Effect.Utils;
 using Trax.Mediator.Services.TrainDiscovery;
+using Trax.Mediator.Services.TrustedExecution;
 using Trax.Scheduler.Services.Operations;
 using static Trax.Dashboard.Utilities.DashboardFormatters;
 
@@ -18,6 +19,9 @@ namespace Trax.Dashboard.Components.Pages.Data;
 
 public partial class MetadataDetailPage
 {
+    [Inject]
+    private ITrustedExecutionScope TrustedScope { get; set; } = default!;
+
     [Inject]
     private IDataContextProviderFactory DataContextFactory { get; set; } = default!;
 
@@ -144,10 +148,16 @@ public partial class MetadataDetailPage
             // Through the operations service, which enqueues through the mediator, so the
             // train's authorization, its OnQueue hook and its subject key apply to a re-queue
             // exactly as they do to any other enqueue. Writing the row here skipped all three.
-            var result = await OperationsService.QueueTrainAsync(
-                new QueueTrainInput(TrainName: _metadata.Name, InputJson: inputJson),
-                DisposalToken
-            );
+            OperationResult result;
+            // The dashboard is the admin surface, gated as a whole by its host, so it enqueues as
+            // trusted infrastructure rather than as a user a train's [TraxAuthorize] can check: a
+            // Blazor circuit has no request to carry one. OnQueue, the subject key and the input
+            // cap still apply. See docs/0017.
+            using (TrustedScope.BeginTrusted("dashboard"))
+                result = await OperationsService.QueueTrainAsync(
+                    new QueueTrainInput(TrainName: _metadata.Name, InputJson: inputJson),
+                    DisposalToken
+                );
 
             if (!result.Success || result.Id is not { } entryId)
             {
