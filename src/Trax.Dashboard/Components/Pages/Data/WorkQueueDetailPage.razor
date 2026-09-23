@@ -69,6 +69,8 @@
             <RadzenStack Gap="0.75rem">
                 <FieldDisplay Label="Created At" Value="@_entry.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")" />
                 <FieldDisplay Label="Dispatched At" Value="@(_entry.DispatchedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")" />
+                <FieldDisplay Label="Confirmed At" Value="@(_entry.ConfirmedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Not confirmed — staged, will not dispatch")" />
+                <FieldDisplay Label="Subject" Value="@(_entry.SubjectKey ?? "—")" />
                 <FieldDisplay Label="Input Type" Value="@(_entry.InputTypeName ?? "—")" />
             </RadzenStack>
         </RadzenColumn>

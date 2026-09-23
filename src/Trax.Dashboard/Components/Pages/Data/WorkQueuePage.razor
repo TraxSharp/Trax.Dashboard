@@ -98,6 +98,29 @@
                               Title="Dispatched At"
                               Width="180px"
                               FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+        <RadzenDataGridColumn TItem="WorkQueue"
+                              Property="SubjectKey"
+                              Title="Subject"
+                              Width="160px">
+            <Template Context="entry">@(entry.SubjectKey ?? "—")</Template>
+        </RadzenDataGridColumn>
+        @* An entry staged by a two-phase enqueue is Queued but undispatchable. Without this it
+           looks like an ordinary queued row and nothing explains why it never runs. *@
+        <RadzenDataGridColumn TItem="WorkQueue"
+                              Property="ConfirmedAt"
+                              Title="Confirmed"
+                              Width="120px">
+            <Template Context="entry">
+                @if (entry.ConfirmedAt is null)
+                {
+                    <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="Staged" />
+                }
+                else
+                {
+                    <text>—</text>
+                }
+            </Template>
+        </RadzenDataGridColumn>
     </Columns>
 </TraxDataGrid>
 
