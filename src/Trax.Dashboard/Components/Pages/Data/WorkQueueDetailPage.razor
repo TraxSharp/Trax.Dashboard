@@ -69,7 +69,7 @@
             <RadzenStack Gap="0.75rem">
                 <FieldDisplay Label="Created At" Value="@_entry.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")" />
                 <FieldDisplay Label="Dispatched At" Value="@(_entry.DispatchedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")" />
-                <FieldDisplay Label="Confirmed At" Value="@(_entry.ConfirmedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Not yet: staged until its OnQueue hook returns")" />
+                <FieldDisplay Label="Confirmed At" Value="@(_entry.ConfirmedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? (_entry.Status == WorkQueueStatus.Queued ? "Not yet: staged until its OnQueue hook returns" : "—"))" />
                 <FieldDisplay Label="Subject" Value="@(_entry.SubjectKey ?? "—")" />
                 @if (_subjectHeldBy is { } heldBy)
                 {
