@@ -26,7 +26,7 @@
          all versions before 1.5.0). bunit 1.40.0 accepts the whole 1.x range. -->
     <PackageVersion Include="AngleSharp" Version="1.8.1" />
     <PackageVersion Include="DotNet.ReproducibleBuilds" Version="2.0.5" />
-    <PackageVersion Include="bunit" Version="1.40.0" />
+    <PackageVersion Include="bunit" Version="2.11.3" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="FluentAssertions" Version="8.11.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
