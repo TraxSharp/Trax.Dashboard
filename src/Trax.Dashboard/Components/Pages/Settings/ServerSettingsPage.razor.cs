@@ -19,9 +19,23 @@ public partial class ServerSettingsPage
     private IOperationsService OperationsService { get; set; } = default!;
 
     // ── Scheduler state ──
-    private SchedulerConfiguration? _schedulerConfig;
-    private LocalWorkerOptions? _localWorkerOptions;
+    // The page edits a copy of the settings, never the live SchedulerConfiguration: the
+    // operations service applies a save to the live settings and persists the row, and it
+    // only does either for a value that differs from what is live. Binding the form to the
+    // live object applied each edit before Save and left the service nothing to persist.
     private bool _schedulerAvailable;
+    private bool _hasLocalWorkers;
+    private bool _hasMetadataCleanup;
+    private SchedulerConfigSnapshot _saved = null!;
+
+    private bool _manifestManagerEnabled;
+    private bool _jobDispatcherEnabled;
+    private int? _maxActiveJobs;
+    private int _workerCount;
+    private int _defaultMaxRetries;
+    private double _retryBackoffMultiplier;
+    private bool _recoverStuckJobsOnStartup;
+    private bool _autoPurgeDeadLetters;
 
     private TimeSpanField _pollingInterval = new();
     private TimeSpanField _defaultRetryDelay = new();
@@ -33,24 +47,6 @@ public partial class ServerSettingsPage
     private TimeSpanField _cleanupRetentionPeriod = new();
 
     private static readonly List<string> TimeUnits = ["seconds", "minutes", "hours", "days"];
-
-    // Scheduler saved-state snapshots
-    private bool _savedManifestManagerEnabled;
-    private bool _savedJobDispatcherEnabled;
-    private TimeSpan _savedPollingInterval;
-    private int? _savedMaxActiveJobs;
-    private int _savedWorkerCount;
-    private int _savedDefaultMaxRetries;
-    private TimeSpan _savedDefaultRetryDelay;
-    private double _savedRetryBackoffMultiplier;
-    private TimeSpan _savedMaxRetryDelay;
-    private TimeSpan _savedDefaultJobTimeout;
-    private TimeSpan _savedStalePendingTimeout;
-    private bool _savedRecoverStuckJobsOnStartup;
-    private TimeSpan _savedDeadLetterRetentionPeriod;
-    private bool _savedAutoPurgeDeadLetters;
-    private TimeSpan _savedCleanupInterval;
-    private TimeSpan _savedCleanupRetentionPeriod;
 
     // ── Logging state ──
     private IConfigurationRoot? _configRoot;
@@ -73,51 +69,48 @@ public partial class ServerSettingsPage
     private bool IsAdminTrainsDirty =>
         _schedulerAvailable
         && (
-            _schedulerConfig!.ManifestManagerEnabled != _savedManifestManagerEnabled
-            || _schedulerConfig.JobDispatcherEnabled != _savedJobDispatcherEnabled
+            _manifestManagerEnabled != _saved.ManifestManagerEnabled
+            || _jobDispatcherEnabled != _saved.JobDispatcherEnabled
         );
 
     private bool IsPollingQueueDirty =>
         _schedulerAvailable
         && (
-            _pollingInterval.ToTimeSpan() != _savedPollingInterval
-            || _schedulerConfig!.MaxActiveJobs != _savedMaxActiveJobs
-            || (
-                _localWorkerOptions is not null
-                && _localWorkerOptions.WorkerCount != _savedWorkerCount
-            )
+            _pollingInterval.ToTimeSpan() != _saved.ManifestManagerPollingInterval
+            || _maxActiveJobs != _saved.MaxActiveJobs
+            || (_hasLocalWorkers && _workerCount != _saved.LocalWorkerCount)
         );
 
     private bool IsRetryDirty =>
         _schedulerAvailable
         && (
-            _schedulerConfig!.DefaultMaxRetries != _savedDefaultMaxRetries
-            || _defaultRetryDelay.ToTimeSpan() != _savedDefaultRetryDelay
-            || _schedulerConfig.RetryBackoffMultiplier != _savedRetryBackoffMultiplier
-            || _maxRetryDelay.ToTimeSpan() != _savedMaxRetryDelay
+            _defaultMaxRetries != _saved.DefaultMaxRetries
+            || _defaultRetryDelay.ToTimeSpan() != _saved.DefaultRetryDelay
+            || _retryBackoffMultiplier != _saved.RetryBackoffMultiplier
+            || _maxRetryDelay.ToTimeSpan() != _saved.MaxRetryDelay
         );
 
     private bool IsJobSettingsDirty =>
         _schedulerAvailable
         && (
-            _defaultJobTimeout.ToTimeSpan() != _savedDefaultJobTimeout
-            || _stalePendingTimeout.ToTimeSpan() != _savedStalePendingTimeout
-            || _schedulerConfig!.RecoverStuckJobsOnStartup != _savedRecoverStuckJobsOnStartup
+            _defaultJobTimeout.ToTimeSpan() != _saved.DefaultJobTimeout
+            || _stalePendingTimeout.ToTimeSpan() != _saved.StalePendingTimeout
+            || _recoverStuckJobsOnStartup != _saved.RecoverStuckJobsOnStartup
         );
 
     private bool IsDeadLetterDirty =>
         _schedulerAvailable
         && (
-            _deadLetterRetentionPeriod.ToTimeSpan() != _savedDeadLetterRetentionPeriod
-            || _schedulerConfig!.AutoPurgeDeadLetters != _savedAutoPurgeDeadLetters
+            _deadLetterRetentionPeriod.ToTimeSpan() != _saved.DeadLetterRetentionPeriod
+            || _autoPurgeDeadLetters != _saved.AutoPurgeDeadLetters
         );
 
     private bool IsMetadataCleanupDirty =>
         _schedulerAvailable
-        && _schedulerConfig?.MetadataCleanup is not null
+        && _hasMetadataCleanup
         && (
-            _cleanupInterval.ToTimeSpan() != _savedCleanupInterval
-            || _cleanupRetentionPeriod.ToTimeSpan() != _savedCleanupRetentionPeriod
+            _cleanupInterval.ToTimeSpan() != _saved.MetadataCleanupInterval
+            || _cleanupRetentionPeriod.ToTimeSpan() != _saved.MetadataCleanupRetention
         );
 
     private bool IsLoggingDirty =>
@@ -129,14 +122,14 @@ public partial class ServerSettingsPage
     protected override void OnInitialized()
     {
         // Scheduler
-        _schedulerConfig = ServiceProvider.GetService<SchedulerConfiguration>();
-        _localWorkerOptions = ServiceProvider.GetService<LocalWorkerOptions>();
-        _schedulerAvailable = _schedulerConfig is not null;
+        _schedulerAvailable = ServiceProvider.GetService<SchedulerConfiguration>() is not null;
 
         if (_schedulerAvailable)
         {
-            LoadSchedulerFromConfig();
-            SnapshotSchedulerState();
+            _saved = OperationsService.GetSchedulerConfig();
+            _hasLocalWorkers = _saved.LocalWorkerCount is not null;
+            _hasMetadataCleanup = _saved.MetadataCleanupInterval is not null;
+            LoadSchedulerForm(_saved);
         }
 
         // Logging
@@ -153,126 +146,96 @@ public partial class ServerSettingsPage
 
     // ── Scheduler helpers ──
 
-    private void LoadSchedulerFromConfig()
+    private void LoadSchedulerForm(SchedulerConfigSnapshot settings)
     {
-        _pollingInterval = TimeSpanField.FromTimeSpan(
-            _schedulerConfig!.ManifestManagerPollingInterval
-        );
-        _defaultRetryDelay = TimeSpanField.FromTimeSpan(_schedulerConfig.DefaultRetryDelay);
-        _maxRetryDelay = TimeSpanField.FromTimeSpan(_schedulerConfig.MaxRetryDelay);
-        _defaultJobTimeout = TimeSpanField.FromTimeSpan(_schedulerConfig.DefaultJobTimeout);
-        _stalePendingTimeout = TimeSpanField.FromTimeSpan(_schedulerConfig.StalePendingTimeout);
-        _deadLetterRetentionPeriod = TimeSpanField.FromTimeSpan(
-            _schedulerConfig.DeadLetterRetentionPeriod
-        );
+        _manifestManagerEnabled = settings.ManifestManagerEnabled;
+        _jobDispatcherEnabled = settings.JobDispatcherEnabled;
+        _pollingInterval = TimeSpanField.FromTimeSpan(settings.ManifestManagerPollingInterval);
+        _maxActiveJobs = settings.MaxActiveJobs;
+        _workerCount = settings.LocalWorkerCount ?? 0;
+        _defaultMaxRetries = settings.DefaultMaxRetries;
+        _defaultRetryDelay = TimeSpanField.FromTimeSpan(settings.DefaultRetryDelay);
+        _retryBackoffMultiplier = settings.RetryBackoffMultiplier;
+        _maxRetryDelay = TimeSpanField.FromTimeSpan(settings.MaxRetryDelay);
+        _defaultJobTimeout = TimeSpanField.FromTimeSpan(settings.DefaultJobTimeout);
+        _stalePendingTimeout = TimeSpanField.FromTimeSpan(settings.StalePendingTimeout);
+        _recoverStuckJobsOnStartup = settings.RecoverStuckJobsOnStartup;
+        _deadLetterRetentionPeriod = TimeSpanField.FromTimeSpan(settings.DeadLetterRetentionPeriod);
+        _autoPurgeDeadLetters = settings.AutoPurgeDeadLetters;
 
-        if (_schedulerConfig.MetadataCleanup is not null)
-        {
-            _cleanupInterval = TimeSpanField.FromTimeSpan(
-                _schedulerConfig.MetadataCleanup.CleanupInterval
-            );
-            _cleanupRetentionPeriod = TimeSpanField.FromTimeSpan(
-                _schedulerConfig.MetadataCleanup.RetentionPeriod
-            );
-        }
+        if (settings.MetadataCleanupInterval is { } interval)
+            _cleanupInterval = TimeSpanField.FromTimeSpan(interval);
+        if (settings.MetadataCleanupRetention is { } retention)
+            _cleanupRetentionPeriod = TimeSpanField.FromTimeSpan(retention);
     }
 
-    private async Task SaveScheduler()
+    /// <summary>
+    /// Writes the form through the shared operations service, so the dashboard save and the
+    /// GraphQL <c>updateSchedulerConfig</c> mutation make the same write. The service applies
+    /// the values that differ to the live settings and persists the row. The dispatcher's
+    /// polling interval is not sent: the page has no field for it, and its one polling field
+    /// is the ManifestManager's.
+    /// </summary>
+    private async Task<OperationResult> SaveScheduler()
     {
-        if (_schedulerConfig is null)
-            return;
-
-        // Route through the shared IOperationsService so the dashboard save and the
-        // GraphQL operations.config.updateScheduler mutation produce the same write.
-        // The service mutates the in-memory singleton AND persists the row.
-        var pollingInterval = _pollingInterval.ToTimeSpan();
         var input = new UpdateSchedulerConfigInput(
-            ManifestManagerEnabled: _schedulerConfig.ManifestManagerEnabled,
-            JobDispatcherEnabled: _schedulerConfig.JobDispatcherEnabled,
-            ManifestManagerPollingInterval: pollingInterval,
-            JobDispatcherPollingInterval: pollingInterval,
-            MaxActiveJobs: _schedulerConfig.MaxActiveJobs,
-            ClearMaxActiveJobs: _schedulerConfig.MaxActiveJobs is null,
-            DefaultMaxRetries: _schedulerConfig.DefaultMaxRetries,
+            ManifestManagerEnabled: _manifestManagerEnabled,
+            JobDispatcherEnabled: _jobDispatcherEnabled,
+            ManifestManagerPollingInterval: _pollingInterval.ToTimeSpan(),
+            MaxActiveJobs: _maxActiveJobs,
+            ClearMaxActiveJobs: _maxActiveJobs is null,
+            DefaultMaxRetries: _defaultMaxRetries,
             DefaultRetryDelay: _defaultRetryDelay.ToTimeSpan(),
-            RetryBackoffMultiplier: _schedulerConfig.RetryBackoffMultiplier,
+            RetryBackoffMultiplier: _retryBackoffMultiplier,
             MaxRetryDelay: _maxRetryDelay.ToTimeSpan(),
             DefaultJobTimeout: _defaultJobTimeout.ToTimeSpan(),
             StalePendingTimeout: _stalePendingTimeout.ToTimeSpan(),
-            RecoverStuckJobsOnStartup: _schedulerConfig.RecoverStuckJobsOnStartup,
+            RecoverStuckJobsOnStartup: _recoverStuckJobsOnStartup,
             DeadLetterRetentionPeriod: _deadLetterRetentionPeriod.ToTimeSpan(),
-            AutoPurgeDeadLetters: _schedulerConfig.AutoPurgeDeadLetters,
-            LocalWorkerCount: _localWorkerOptions?.WorkerCount,
-            MetadataCleanupInterval: _schedulerConfig.MetadataCleanup is not null
-                ? _cleanupInterval.ToTimeSpan()
-                : null,
-            MetadataCleanupRetention: _schedulerConfig.MetadataCleanup is not null
+            AutoPurgeDeadLetters: _autoPurgeDeadLetters,
+            LocalWorkerCount: _hasLocalWorkers ? _workerCount : null,
+            MetadataCleanupInterval: _hasMetadataCleanup ? _cleanupInterval.ToTimeSpan() : null,
+            MetadataCleanupRetention: _hasMetadataCleanup
                 ? _cleanupRetentionPeriod.ToTimeSpan()
                 : null
         );
 
-        await OperationsService.UpdateSchedulerConfigAsync(input, CancellationToken.None);
+        var result = await OperationsService.UpdateSchedulerConfigAsync(
+            input,
+            CancellationToken.None
+        );
 
-        SnapshotSchedulerState();
+        if (result.Success)
+            _saved = OperationsService.GetSchedulerConfig();
+
+        return result;
     }
 
+    /// <summary>
+    /// Fills the form with the library defaults for every setting the page shows. Nothing is
+    /// applied until Save, which writes them through the service like any other edit.
+    /// </summary>
     private void ResetSchedulerDefaults()
     {
-        if (_schedulerConfig is null)
-            return;
+        var defaults = new SchedulerConfiguration();
+        var cleanupDefaults = new MetadataCleanupConfiguration();
 
-        _schedulerConfig.ManifestManagerEnabled = true;
-        _schedulerConfig.JobDispatcherEnabled = true;
-        _schedulerConfig.ManifestManagerPollingInterval = TimeSpan.FromSeconds(5);
-        _schedulerConfig.JobDispatcherPollingInterval = TimeSpan.FromSeconds(5);
-        _schedulerConfig.MaxActiveJobs = 10;
-        _schedulerConfig.DefaultMaxRetries = 3;
-        _schedulerConfig.DefaultRetryDelay = TimeSpan.FromMinutes(5);
-        _schedulerConfig.RetryBackoffMultiplier = 2.0;
-        _schedulerConfig.MaxRetryDelay = TimeSpan.FromHours(1);
-        _schedulerConfig.DefaultJobTimeout = TimeSpan.FromMinutes(20);
-        _schedulerConfig.StalePendingTimeout = TimeSpan.FromMinutes(20);
-        _schedulerConfig.RecoverStuckJobsOnStartup = true;
-        _schedulerConfig.DeadLetterRetentionPeriod = TimeSpan.FromDays(30);
-        _schedulerConfig.AutoPurgeDeadLetters = true;
-
-        if (_localWorkerOptions is not null)
-            _localWorkerOptions.WorkerCount = Environment.ProcessorCount;
-
-        if (_schedulerConfig.MetadataCleanup is not null)
-        {
-            _schedulerConfig.MetadataCleanup.CleanupInterval = TimeSpan.FromMinutes(1);
-            _schedulerConfig.MetadataCleanup.RetentionPeriod = TimeSpan.FromHours(1);
-        }
-
-        LoadSchedulerFromConfig();
-        SnapshotSchedulerState();
-    }
-
-    private void SnapshotSchedulerState()
-    {
-        _savedManifestManagerEnabled = _schedulerConfig!.ManifestManagerEnabled;
-        _savedJobDispatcherEnabled = _schedulerConfig.JobDispatcherEnabled;
-        _savedPollingInterval = _schedulerConfig.ManifestManagerPollingInterval;
-        _savedMaxActiveJobs = _schedulerConfig.MaxActiveJobs;
-        _savedDefaultMaxRetries = _schedulerConfig.DefaultMaxRetries;
-        _savedDefaultRetryDelay = _schedulerConfig.DefaultRetryDelay;
-        _savedRetryBackoffMultiplier = _schedulerConfig.RetryBackoffMultiplier;
-        _savedMaxRetryDelay = _schedulerConfig.MaxRetryDelay;
-        _savedDefaultJobTimeout = _schedulerConfig.DefaultJobTimeout;
-        _savedStalePendingTimeout = _schedulerConfig.StalePendingTimeout;
-        _savedRecoverStuckJobsOnStartup = _schedulerConfig.RecoverStuckJobsOnStartup;
-        _savedDeadLetterRetentionPeriod = _schedulerConfig.DeadLetterRetentionPeriod;
-        _savedAutoPurgeDeadLetters = _schedulerConfig.AutoPurgeDeadLetters;
-
-        if (_localWorkerOptions is not null)
-            _savedWorkerCount = _localWorkerOptions.WorkerCount;
-
-        if (_schedulerConfig.MetadataCleanup is not null)
-        {
-            _savedCleanupInterval = _schedulerConfig.MetadataCleanup.CleanupInterval;
-            _savedCleanupRetentionPeriod = _schedulerConfig.MetadataCleanup.RetentionPeriod;
-        }
+        _manifestManagerEnabled = defaults.ManifestManagerEnabled;
+        _jobDispatcherEnabled = defaults.JobDispatcherEnabled;
+        _pollingInterval = TimeSpanField.FromTimeSpan(defaults.ManifestManagerPollingInterval);
+        _maxActiveJobs = defaults.MaxActiveJobs;
+        _workerCount = new LocalWorkerOptions().WorkerCount;
+        _defaultMaxRetries = defaults.DefaultMaxRetries;
+        _defaultRetryDelay = TimeSpanField.FromTimeSpan(defaults.DefaultRetryDelay);
+        _retryBackoffMultiplier = defaults.RetryBackoffMultiplier;
+        _maxRetryDelay = TimeSpanField.FromTimeSpan(defaults.MaxRetryDelay);
+        _defaultJobTimeout = TimeSpanField.FromTimeSpan(defaults.DefaultJobTimeout);
+        _stalePendingTimeout = TimeSpanField.FromTimeSpan(defaults.StalePendingTimeout);
+        _recoverStuckJobsOnStartup = defaults.RecoverStuckJobsOnStartup;
+        _deadLetterRetentionPeriod = TimeSpanField.FromTimeSpan(defaults.DeadLetterRetentionPeriod);
+        _autoPurgeDeadLetters = defaults.AutoPurgeDeadLetters;
+        _cleanupInterval = TimeSpanField.FromTimeSpan(cleanupDefaults.CleanupInterval);
+        _cleanupRetentionPeriod = TimeSpanField.FromTimeSpan(cleanupDefaults.RetentionPeriod);
     }
 
     // ── Logging helpers ──
@@ -318,18 +281,49 @@ public partial class ServerSettingsPage
 
     private async Task Save()
     {
+        var details = new List<string>();
+
         if (_schedulerAvailable)
-            await SaveScheduler();
+        {
+            OperationResult result;
+            try
+            {
+                result = await SaveScheduler();
+            }
+            catch (Exception ex)
+            {
+                result = new OperationResult(false, Message: ex.Message);
+            }
+
+            if (!result.Success)
+            {
+                NotificationService.Notify(
+                    new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Scheduler settings not saved",
+                        Detail = result.Message ?? "The operations service refused the change.",
+                        Duration = 8000,
+                    }
+                );
+                return;
+            }
+
+            details.Add(result.Message ?? "Scheduler settings saved.");
+        }
 
         if (_loggingAvailable)
+        {
             SaveLogging();
+            details.Add("Log levels updated.");
+        }
 
         NotificationService.Notify(
             new NotificationMessage
             {
                 Severity = NotificationSeverity.Success,
                 Summary = "Settings Saved",
-                Detail = "Server settings updated.",
+                Detail = string.Join(" ", details),
                 Duration = 4000,
             }
         );
@@ -348,7 +342,7 @@ public partial class ServerSettingsPage
             {
                 Severity = NotificationSeverity.Info,
                 Summary = "Defaults Restored",
-                Detail = "All server settings have been reset to their default values.",
+                Detail = "The form now holds the default values. Save to apply them.",
                 Duration = 4000,
             }
         );
