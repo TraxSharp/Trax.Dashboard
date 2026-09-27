@@ -2,12 +2,14 @@ using System.Text.Json;
 using Bunit;
 using FluentAssertions;
 using LanguageExt;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Radzen;
 using Trax.Dashboard.Components.Dialogs;
 using Trax.Dashboard.Tests.Integration.Fakes.Data;
 using Trax.Effect.Configuration.TraxEffectConfiguration;
 using Trax.Effect.Data.Services.IDataContextFactory;
+using Trax.Effect.Enums;
 using Trax.Effect.Extensions;
 using Trax.Effect.Services.ServiceTrain;
 using Trax.Effect.Utils;
@@ -19,7 +21,8 @@ namespace Trax.Dashboard.Tests.Integration.UnitTests.Components;
 /// <summary>
 /// The Run dialog builds a train's input from its Form or JSON tab, writes the run's metadata
 /// row and hands both to the job submitter. The Form tab reads its input with the same
-/// serializer options a host configures for train parameters.
+/// serializer options a host configures for train parameters, and a submit the job submitter
+/// refuses does not leave the row it wrote waiting as Pending for a job that never existed.
 /// </summary>
 [TestFixture]
 public class RunTrainDialogTests
@@ -67,6 +70,48 @@ public class RunTrainDialogTests
                 new ModeInput { Mode = RunMode.Fast, Label = "" },
                 "the form's first enum name is its initial value, and it reaches the train"
             );
+    }
+
+    [Test]
+    public async Task Submit_passes_the_dialog_cancellation_token()
+    {
+        var submitter = new RecordingJobSubmitter();
+        _ctx.Services.AddSingleton<IJobSubmitter>(submitter);
+
+        var dialog = RenderDialog();
+        await ClickEnqueue(dialog);
+
+        submitter
+            .Token.CanBeCanceled.Should()
+            .BeTrue("closing the dialog cancels a submit that is still in flight");
+    }
+
+    [Test]
+    public async Task Failed_submit_leaves_no_pending_run()
+    {
+        _ctx.Services.AddSingleton<IJobSubmitter>(new ThrowingJobSubmitter());
+
+        var dialog = RenderDialog();
+        await ClickEnqueue(dialog);
+
+        dialog.WaitForAssertion(
+            () =>
+                dialog
+                    .FindAll(".rz-alert")
+                    .Select(a => a.TextContent)
+                    .Should()
+                    .ContainSingle()
+                    .Which.Should()
+                    .Contain("submitter refused the job"),
+            TimeSpan.FromSeconds(10)
+        );
+
+        await using var db = await _data.CreateDbContextAsync(default);
+        var run = (await db.Metadatas.AsNoTracking().ToListAsync()).Should().ContainSingle().Which;
+        run.TrainState.Should()
+            .Be(TrainState.Failed, "no job exists to move a Pending run on, so it failed here");
+        run.EndTime.Should().NotBeNull();
+        run.FailureReason.Should().Contain("submitter refused the job");
     }
 
     private IRenderedComponent<RunTrainDialog> RenderDialog()
@@ -127,5 +172,14 @@ public class RunTrainDialogTests
             Token = cancellationToken;
             return Task.FromResult("job-1");
         }
+    }
+
+    private sealed class ThrowingJobSubmitter : IJobSubmitter
+    {
+        public Task<string> EnqueueAsync(long metadataId) =>
+            throw new InvalidOperationException("submitter refused the job");
+
+        public Task<string> EnqueueAsync(long metadataId, object input) =>
+            throw new InvalidOperationException("submitter refused the job");
     }
 }

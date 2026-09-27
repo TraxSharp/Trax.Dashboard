@@ -3,9 +3,11 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
+using Microsoft.EntityFrameworkCore;
 using Radzen;
 using Trax.Effect.Configuration.TraxEffectConfiguration;
 using Trax.Effect.Data.Services.IDataContextFactory;
+using Trax.Effect.Enums;
 using Trax.Effect.Models.Metadata;
 using Trax.Effect.Models.Metadata.DTOs;
 using Trax.Mediator.Services.TrainDiscovery;
@@ -97,11 +99,21 @@ public partial class RunTrainDialog : IDisposable
                 }
             );
 
-            using var dataContext = await DataContextFactory.CreateDbContextAsync(_cts.Token);
-            await dataContext.Track(metadata);
-            await dataContext.SaveChanges(_cts.Token);
+            using (var dataContext = await DataContextFactory.CreateDbContextAsync(_cts.Token))
+            {
+                await dataContext.Track(metadata);
+                await dataContext.SaveChanges(_cts.Token);
+            }
 
-            await JobSubmitter.EnqueueAsync(metadata.Id, input);
+            try
+            {
+                await JobSubmitter.EnqueueAsync(metadata.Id, input, _cts.Token);
+            }
+            catch (Exception submitFailure)
+            {
+                await FailUnsubmittedRun(metadata.Id, submitFailure);
+                throw;
+            }
 
             DialogService.Close();
             Navigation.NavigateTo($"trax/data/metadata/{metadata.Id}");
@@ -117,6 +129,33 @@ public partial class RunTrainDialog : IDisposable
         finally
         {
             _running = false;
+        }
+    }
+
+    /// <summary>
+    /// The job submitter refused the run, so no job exists to move its row out of Pending. Fail
+    /// it here with the submitter's exception, as the job dispatcher does when a submit fails,
+    /// rather than leave it for the stale-pending reaper to fail later for the wrong reason.
+    /// </summary>
+    private async Task FailUnsubmittedRun(long metadataId, Exception submitFailure)
+    {
+        try
+        {
+            using var dataContext = await DataContextFactory.CreateDbContextAsync(
+                CancellationToken.None
+            );
+            var metadata = await dataContext.Metadatas.FirstOrDefaultAsync(m => m.Id == metadataId);
+            if (metadata is null || metadata.TrainState != TrainState.Pending)
+                return;
+
+            metadata.TrainState = TrainState.Failed;
+            metadata.EndTime = DateTime.UtcNow;
+            metadata.AddException(submitFailure);
+            await dataContext.SaveChanges(CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            // The dialog reports the submit failure itself; the reaper still fails the row.
         }
     }
 
