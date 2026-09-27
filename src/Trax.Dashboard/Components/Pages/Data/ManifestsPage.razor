@@ -137,7 +137,7 @@
         IQueryable<Manifest> query = context.Manifests.Include(m => m.ManifestGroup).AsNoTracking();
 
         if (DashboardSettings.HideAdminTrains)
-            query = query.ExcludeAdmin(DashboardSettings.AdminTrainNames);
+            query = query.ExcludeAdmin(AdminTrains.FullNames);
 
         _items = await query.ToListAsync(cancellationToken);
     }
