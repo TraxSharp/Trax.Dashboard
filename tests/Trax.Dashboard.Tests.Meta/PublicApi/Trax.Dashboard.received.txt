@@ -381,6 +381,9 @@ namespace Trax.Dashboard.Configuration
         public string EnvironmentName { get; set; }
         public string RoutePrefix { get; set; }
         public string Title { get; set; }
+        public Trax.Dashboard.Configuration.DashboardOptions AllowAnonymousDashboard() { }
+        public Trax.Dashboard.Configuration.DashboardOptions RequirePolicy(string policy) { }
+        public Trax.Dashboard.Configuration.DashboardOptions RequireRoles(params string[] roles) { }
     }
 }
 namespace Trax.Dashboard.Extensions
@@ -389,7 +392,7 @@ namespace Trax.Dashboard.Extensions
     {
         public static Microsoft.AspNetCore.Builder.WebApplicationBuilder AddTraxDashboard(this Microsoft.AspNetCore.Builder.WebApplicationBuilder builder, System.Action<Trax.Dashboard.Configuration.DashboardOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTraxDashboard(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Trax.Dashboard.Configuration.DashboardOptions>? configure = null) { }
-        public static Microsoft.AspNetCore.Builder.WebApplication UseTraxDashboard(this Microsoft.AspNetCore.Builder.WebApplication app, string routePrefix = "/trax", string? title = null) { }
+        public static Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder UseTraxDashboard(this Microsoft.AspNetCore.Builder.WebApplication app, string routePrefix = "/trax", string? title = null) { }
     }
 }
 namespace Trax.Dashboard.Models
