@@ -179,15 +179,41 @@ public partial class RunTrainDialog : IDisposable
     /// <summary>
     /// The options both tabs read an input with: the host's train parameter options, so an
     /// enum or any other converter it configures reads the same from either tab, made
-    /// case-insensitive. The form's keys are the C# property names, and a person typing JSON
-    /// may write them that way too; under a camelCase policy either would otherwise match
-    /// nothing and leave the property at its default without an error.
+    /// case-insensitive and refusing a property given twice. The form's keys are the C#
+    /// property names, and a person typing JSON may write them that way too; under a camelCase
+    /// policy either would otherwise match nothing and leave the property at its default
+    /// without an error. Once case is ignored, <c>{"amount":1,"Amount":999}</c> names one
+    /// property twice, which is refused rather than resolved to either value.
+    /// Trax.Docs/adr/0023-caller-supplied-train-input-is-read-case-insensitively.md records
+    /// both rules for every caller-supplied train input.
+    ///
+    /// <para>One copy is kept for as long as the host's options are the same instance, and
+    /// rebuilt if they are replaced.</para>
     /// </summary>
-    private static JsonSerializerOptions InputOptions() =>
-        new(TraxEffectConfiguration.StaticSystemJsonSerializerOptions)
+    private static JsonSerializerOptions InputOptions()
+    {
+        var source = TraxEffectConfiguration.StaticSystemJsonSerializerOptions;
+        var cached = _inputOptions;
+        if (cached is not null && ReferenceEquals(cached.Source, source))
+            return cached.Options;
+
+        var options = new JsonSerializerOptions(source)
         {
             PropertyNameCaseInsensitive = true,
+            AllowDuplicateProperties = false,
         };
+        options.MakeReadOnly(populateMissingResolver: true);
+
+        _inputOptions = new DerivedOptions(source, options);
+        return options;
+    }
+
+    private static DerivedOptions? _inputOptions;
+
+    private sealed record DerivedOptions(
+        JsonSerializerOptions Source,
+        JsonSerializerOptions Options
+    );
 
     private static JsonNode? ToJsonNode(object? value, Type targetType)
     {

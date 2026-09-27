@@ -23,8 +23,13 @@ namespace Trax.Dashboard.Tests.Integration.UnitTests.Components;
 /// row and hands both to the job submitter. The Form tab reads its input with the same
 /// serializer options a host configures for train parameters, and a submit the job submitter
 /// refuses does not leave the row it wrote waiting as Pending for a job that never existed.
+///
+/// <para>Both tabs read property names in any case and refuse a property given twice, as
+/// <c>Trax.Docs/adr/0023-caller-supplied-train-input-is-read-case-insensitively.md</c> decides
+/// for every caller-supplied train input.</para>
 /// </summary>
 [TestFixture]
+[Property("adr", "Trax.Docs/adr/0023-caller-supplied-train-input-is-read-case-insensitively.md")]
 public class RunTrainDialogTests
 {
     private Bunit.TestContext _ctx = null!;
@@ -137,13 +142,66 @@ public class RunTrainDialogTests
         run.FailureReason.Should().Contain("submitter refused the job");
     }
 
-    private IRenderedComponent<RunTrainDialog> RenderDialog()
+    [Test]
+    public async Task Json_tab_refuses_a_property_given_twice_in_different_cases()
     {
+        var submitter = new RecordingJobSubmitter();
+        _ctx.Services.AddSingleton<IJobSubmitter>(submitter);
+
+        var dialog = RenderDialog(typeof(IAmountTrain));
+        await dialog
+            .FindAll("button[role=tab]")
+            .Single(a => a.TextContent.Contains("JSON"))
+            .ClickAsync(new());
+        dialog.Find("textarea").Change("""{"amount":1,"Amount":999}""");
+        await ClickEnqueue(dialog);
+
+        AssertRefusedAsDuplicate(dialog, submitter);
+    }
+
+    [Test]
+    public async Task Form_tab_refuses_a_property_given_twice_in_different_cases()
+    {
+        var submitter = new RecordingJobSubmitter();
+        _ctx.Services.AddSingleton<IJobSubmitter>(submitter);
+
+        var dialog = RenderDialog(typeof(IAmountTrain));
+        // A complex property's form field takes JSON, so the duplicate reaches the reader there.
+        dialog.FindAll("input").Last().Change("""{"amount":1,"Amount":999}""");
+        await ClickEnqueue(dialog);
+
+        AssertRefusedAsDuplicate(dialog, submitter);
+    }
+
+    private void AssertRefusedAsDuplicate(
+        IRenderedComponent<RunTrainDialog> dialog,
+        RecordingJobSubmitter submitter
+    )
+    {
+        dialog
+            .FindAll(".rz-alert")
+            .Select(a => a.TextContent)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Contain(
+                "Invalid JSON",
+                "a property given twice is ambiguous, so it is refused rather than resolved to "
+                    + "one of its values (Trax.Docs/adr/0023-caller-supplied-train-input-is-read-case-insensitively.md)"
+            )
+            .And.ContainEquivalentOf("duplicate");
+        submitter.Input.Should().BeNull("nothing is submitted when the input is refused");
+    }
+
+    private IRenderedComponent<RunTrainDialog> RenderDialog(Type? serviceType = null)
+    {
+        serviceType ??= typeof(IModeTrain);
         var trains = new ServiceCollection();
         trains.AddScopedTraxRoute<IModeTrain, ModeTrain>();
+        trains.AddScopedTraxRoute<IAmountTrain, AmountTrain>();
         var registration = new TrainDiscoveryService(trains)
             .DiscoverTrains()
-            .Single(r => r.ServiceType == typeof(IModeTrain));
+            .Single(r => r.ServiceType == serviceType);
 
         return _ctx.RenderComponent<RunTrainDialog>(p => p.Add(x => x.Registration, registration));
     }
@@ -164,6 +222,20 @@ public class RunTrainDialogTests
     {
         public RunMode Mode { get; init; }
         public string Label { get; init; } = "unset";
+    }
+
+    public record AmountInput
+    {
+        public int Amount { get; init; }
+        public AmountInput? Nested { get; init; }
+    }
+
+    public interface IAmountTrain : IServiceTrain<AmountInput, Unit> { }
+
+    public class AmountTrain : ServiceTrain<AmountInput, Unit>, IAmountTrain
+    {
+        protected override Task<Either<Exception, Unit>> Junctions() =>
+            Task.FromResult<Either<Exception, Unit>>(Unit.Default);
     }
 
     public interface IModeTrain : IServiceTrain<ModeInput, Unit> { }
