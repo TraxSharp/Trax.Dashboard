@@ -55,8 +55,11 @@
 
         if (DashboardSettings.HideAdminTrains)
         {
-            var adminNames = DashboardSettings.AdminTrainNames;
-            _trains = all.Where(w => !adminNames.Contains(w.ImplementationTypeName)).ToList();
+            // A train is administrative when its interface FullName is one of the scheduler's,
+            // the rule the run and manifest lists and the API's hideAdminTrains filter use. The
+            // short class name would also hide a consumer's train that happens to share it.
+            _trains = all.Where(w => !AdminTrains.FullNames.Contains(w.ServiceType.FullName))
+                .ToList();
         }
         else
         {
