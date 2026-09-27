@@ -80,7 +80,7 @@ public partial class RunTrainDialog : IDisposable
                     : JsonSerializer.Deserialize(
                         _jsonInput,
                         Registration.InputType,
-                        TraxEffectConfiguration.StaticSystemJsonSerializerOptions
+                        InputOptions()
                     );
 
             if (input is null)
@@ -169,18 +169,25 @@ public partial class RunTrainDialog : IDisposable
             jsonObj[prop.Name] = ToJsonNode(value, prop.PropertyType);
         }
 
-        // The same options the JSON tab reads with, so an enum or any other converter a host
-        // configures for train parameters reads the same way from either tab. The form keys
-        // are the C# property names, which a camelCase naming policy would not otherwise match.
-        var options = new JsonSerializerOptions(
-            TraxEffectConfiguration.StaticSystemJsonSerializerOptions
-        )
+        return JsonSerializer.Deserialize(
+            jsonObj.ToJsonString(),
+            Registration.InputType,
+            InputOptions()
+        );
+    }
+
+    /// <summary>
+    /// The options both tabs read an input with: the host's train parameter options, so an
+    /// enum or any other converter it configures reads the same from either tab, made
+    /// case-insensitive. The form's keys are the C# property names, and a person typing JSON
+    /// may write them that way too; under a camelCase policy either would otherwise match
+    /// nothing and leave the property at its default without an error.
+    /// </summary>
+    private static JsonSerializerOptions InputOptions() =>
+        new(TraxEffectConfiguration.StaticSystemJsonSerializerOptions)
         {
             PropertyNameCaseInsensitive = true,
         };
-
-        return JsonSerializer.Deserialize(jsonObj.ToJsonString(), Registration.InputType, options);
-    }
 
     private static JsonNode? ToJsonNode(object? value, Type targetType)
     {

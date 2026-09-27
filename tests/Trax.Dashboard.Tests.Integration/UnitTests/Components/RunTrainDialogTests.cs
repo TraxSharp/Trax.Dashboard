@@ -73,6 +73,29 @@ public class RunTrainDialogTests
     }
 
     [Test]
+    public async Task Json_tab_reads_property_names_in_any_case()
+    {
+        var submitter = new RecordingJobSubmitter();
+        _ctx.Services.AddSingleton<IJobSubmitter>(submitter);
+
+        var dialog = RenderDialog();
+        await dialog
+            .FindAll("button[role=tab]")
+            .Single(a => a.TextContent.Contains("JSON"))
+            .ClickAsync(new());
+        dialog.Find("textarea").Change("""{"Mode":"Slow","Label":"from json"}""");
+        await ClickEnqueue(dialog);
+
+        dialog.FindAll(".rz-alert").Select(a => a.TextContent.Trim()).Should().BeEmpty();
+        submitter
+            .Input.Should()
+            .BeEquivalentTo(
+                new ModeInput { Mode = RunMode.Slow, Label = "from json" },
+                "the C# property names read the same as their camelCase form"
+            );
+    }
+
+    [Test]
     public async Task Submit_passes_the_dialog_cancellation_token()
     {
         var submitter = new RecordingJobSubmitter();
