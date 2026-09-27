@@ -130,11 +130,17 @@ public partial class RunTrainDialog : IDisposable
             jsonObj[prop.Name] = ToJsonNode(value, prop.PropertyType);
         }
 
-        return JsonSerializer.Deserialize(
-            jsonObj.ToJsonString(),
-            Registration.InputType,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        );
+        // The same options the JSON tab reads with, so an enum or any other converter a host
+        // configures for train parameters reads the same way from either tab. The form keys
+        // are the C# property names, which a camelCase naming policy would not otherwise match.
+        var options = new JsonSerializerOptions(
+            TraxEffectConfiguration.StaticSystemJsonSerializerOptions
+        )
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
+        return JsonSerializer.Deserialize(jsonObj.ToJsonString(), Registration.InputType, options);
     }
 
     private static JsonNode? ToJsonNode(object? value, Type targetType)
