@@ -18,6 +18,7 @@ if your work contradicts one, say so rather than silently overriding it.
 | `AddTraxDashboard` or `UseTraxDashboard` | [0001](./docs/adr/0001-the-dashboard-mounts-into-the-host-app.md), these run inside somebody else's application and change its middleware |
 | the queue dialog, the Re-queue button, or anything else that enqueues | central `docs/0017`: enqueue through `IOperationsService` inside the `"dashboard"` trusted scope, never by building a work queue row; per-train `[TraxAuthorize]` does not apply because the dashboard is gated as a whole by its host |
 | the work queue pages (Staged, Subject, Waiting On) or the Failure Class field | central `docs/0018`, `docs/0019` and `docs/0020` |
+| the persisted-operations pages | [0004](./docs/adr/0004-persisted-operations-pages-call-the-api-resolvers.md): read and write through the API package's resolvers, addressed by tenant and id |
 
 Decisions binding more than one repo live in the central corpus at `Trax.Docs/adr/`, whose
 index lists them by repo. Nineteen name `dashboard`: the workspace-wide conventions, `0016`
