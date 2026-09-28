@@ -471,6 +471,7 @@ namespace Trax.Dashboard.Services.DashboardSettings
         public DashboardSettingsService(Trax.Dashboard.Services.LocalStorage.ILocalStorageService localStorage) { }
         public System.Collections.Generic.IReadOnlyList<string> AdminTrainNames { get; }
         public bool HideAdminTrains { get; }
+        public string? LastPollError { get; }
         public System.DateTime LastPollTime { get; }
         public System.TimeSpan PollingInterval { get; }
         public bool ShowAvgDuration { get; }
@@ -479,6 +480,7 @@ namespace Trax.Dashboard.Services.DashboardSettings
         public bool ShowServerHealth { get; }
         public bool ShowSummaryCards { get; }
         public System.Threading.Tasks.Task InitializeAsync() { }
+        public void NotifyPollFailed(string message) { }
         public void NotifyPolled() { }
         public System.Threading.Tasks.Task SetComponentVisibilityAsync(string key, bool visible) { }
         public System.Threading.Tasks.Task SetHideAdminTrainsAsync(bool hide) { }
@@ -488,6 +490,7 @@ namespace Trax.Dashboard.Services.DashboardSettings
     {
         System.Collections.Generic.IReadOnlyList<string> AdminTrainNames { get; }
         bool HideAdminTrains { get; }
+        string? LastPollError { get; }
         System.DateTime LastPollTime { get; }
         System.TimeSpan PollingInterval { get; }
         bool ShowAvgDuration { get; }
@@ -496,6 +499,7 @@ namespace Trax.Dashboard.Services.DashboardSettings
         bool ShowServerHealth { get; }
         bool ShowSummaryCards { get; }
         System.Threading.Tasks.Task InitializeAsync();
+        void NotifyPollFailed(string message);
         void NotifyPolled();
         System.Threading.Tasks.Task SetComponentVisibilityAsync(string key, bool visible);
         System.Threading.Tasks.Task SetHideAdminTrainsAsync(bool hide);
