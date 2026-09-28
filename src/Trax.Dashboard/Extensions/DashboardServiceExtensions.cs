@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Radzen;
 using Trax.Dashboard.Components;
 using Trax.Dashboard.Configuration;
 using Trax.Dashboard.Services.DashboardSettings;
 using Trax.Dashboard.Services.LocalStorage;
+using Trax.Dashboard.Services.LogLevels;
 using Trax.Dashboard.Services.ThemeState;
 using Trax.Effect.Configuration.TraxBuilder;
 
@@ -31,11 +33,6 @@ public static class DashboardServiceExtensions
         // This is idempotent and no-ops when the manifest is absent (e.g. published apps).
         if (!builder.Environment.IsDevelopment())
             builder.WebHost.UseStaticWebAssets();
-
-        // Add a MemoryConfigurationSource as the last (highest priority) source so that
-        // runtime configuration overrides (e.g. log level changes from the dashboard)
-        // survive IConfigurationRoot.Reload() — the memory provider's Load() is a no-op.
-        builder.Configuration.AddInMemoryCollection();
 
         builder.Services.AddTraxDashboard(configure);
         return builder;
@@ -66,6 +63,19 @@ public static class DashboardServiceExtensions
         services.AddScoped<ILocalStorageService, LocalStorageService>();
         services.AddScoped<IThemeStateService, ThemeStateService>();
         services.AddScoped<IDashboardSettingsService, DashboardSettingsService>();
+
+        // Log levels saved on Server Settings go to the logger filter options, after every
+        // configuration source, rather than into IConfiguration (see DashboardLogLevelOverrides).
+        if (!services.Any(sd => sd.ServiceType == typeof(DashboardLogLevelOverrides)))
+        {
+            services.AddSingleton<DashboardLogLevelOverrides>();
+            services.AddSingleton<IPostConfigureOptions<LoggerFilterOptions>>(sp =>
+                sp.GetRequiredService<DashboardLogLevelOverrides>()
+            );
+            services.AddSingleton<IOptionsChangeTokenSource<LoggerFilterOptions>>(sp =>
+                sp.GetRequiredService<DashboardLogLevelOverrides>()
+            );
+        }
 
         services.AddRadzenComponents();
 
