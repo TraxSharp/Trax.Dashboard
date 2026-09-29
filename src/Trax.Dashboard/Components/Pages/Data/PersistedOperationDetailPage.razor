@@ -8,7 +8,6 @@
 @using Trax.Effect.Models.PersistedOperation
 @using Trax.Effect.Models.PersistedOperationHistory
 @inject IDataContextProviderFactory DataContextFactory
-@inject IPersistedOperationStore Store
 @inject NavigationManager Navigation
 @inject IServiceProvider ServiceProvider
 @inject DialogService DialogService
@@ -107,12 +106,19 @@ else
 
     private bool _available;
     private bool _loading = true;
+    private IPersistedOperationStore? _store;
     private PersistedOperation? _row;
     private List<PersistedOperationHistory> _history = [];
 
     protected override async Task OnInitializedAsync()
     {
-        _available = ServiceProvider.GetService<IPersistedOperationsCapability>() is not null;
+        // The store is resolved only once the capability says persisted operations are on. A
+        // host without them registers no store, and an @inject of it would fail the page's
+        // construction and end the circuit instead of showing the notice below.
+        _store = ServiceProvider.GetService<IPersistedOperationsCapability>() is not null
+            ? ServiceProvider.GetService<IPersistedOperationStore>()
+            : null;
+        _available = _store is not null;
         if (_available)
             await LoadAsync();
         _loading = false;
@@ -159,7 +165,7 @@ else
 
     private async Task Deactivate()
     {
-        if (_row is null) return;
+        if (_row is null || _store is null) return;
         var reason = await DialogService.OpenAsync<DeactivationReasonDialog>(
             "Deactivate persisted operation",
             parameters: new Dictionary<string, object?>(),
@@ -167,7 +173,7 @@ else
         );
         if (reason is string r && !string.IsNullOrWhiteSpace(r))
         {
-            await Store.DeactivateAsync(_row.Id, null, r, CancellationToken.None);
+            await _store.DeactivateAsync(_row.Id, null, r, CancellationToken.None);
             NotificationService.Notify(NotificationSeverity.Success, "Deactivated", _row.Id, duration: 3000);
             await LoadAsync();
         }
@@ -175,8 +181,8 @@ else
 
     private async Task Restore()
     {
-        if (_row is null) return;
-        await Store.RestoreAsync(_row.Id, null, CancellationToken.None);
+        if (_row is null || _store is null) return;
+        await _store.RestoreAsync(_row.Id, null, CancellationToken.None);
         NotificationService.Notify(NotificationSeverity.Success, "Restored", _row.Id, duration: 3000);
         await LoadAsync();
     }
