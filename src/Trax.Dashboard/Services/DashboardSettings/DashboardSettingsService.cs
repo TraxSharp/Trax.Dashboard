@@ -10,7 +10,8 @@ namespace Trax.Dashboard.Services.DashboardSettings;
 /// not intended to be used directly.
 /// </summary>
 /// <param name="localStorage">Browser storage the preferences are read from and written to.</param>
-public class DashboardSettingsService(ILocalStorageService localStorage) : IDashboardSettingsService
+internal class DashboardSettingsService(ILocalStorageService localStorage)
+    : IDashboardSettingsService
 {
     /// <summary>Polling interval, in seconds, used until the browser stores a different one.</summary>
     public const int DefaultPollingIntervalSeconds = 5;

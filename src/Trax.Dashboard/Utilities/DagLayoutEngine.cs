@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using Trax.Dashboard.Models;
 using Trax.Scheduler.Utilities;
@@ -9,6 +10,7 @@ namespace Trax.Dashboard.Utilities;
 /// <see cref="DagLayoutEngine.ComputeLayout"/>; public only because <c>DagGraph.Layout</c>
 /// exposes it, and not intended for use outside this package.
 /// </summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public class PositionedNode
 {
     /// <summary>The source node's <see cref="DagNode.Id"/>.</summary>
@@ -21,10 +23,10 @@ public class PositionedNode
     public bool IsHighlighted { get; init; }
 
     /// <summary>Left edge of the node. Nodes in the same layer share it; layers run left to right.</summary>
-    public double X { get; set; }
+    public double X { get; init; }
 
     /// <summary>Top edge of the node. Each layer is centred vertically against the tallest one.</summary>
-    public double Y { get; set; }
+    public double Y { get; init; }
 
     /// <summary>Node width; always 180.</summary>
     public double Width { get; init; }
@@ -38,6 +40,7 @@ public class PositionedNode
 /// <see cref="DagLayoutEngine.ComputeLayout"/>; public only because <c>DagGraph.Layout</c>
 /// exposes it, and not intended for use outside this package.
 /// </summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public class PositionedEdge
 {
     /// <summary>The upstream node's id; the curve starts at that node's right edge.</summary>
@@ -57,6 +60,7 @@ public class PositionedEdge
 /// <see cref="DagLayoutEngine.ComputeLayout"/>; public only because <c>DagGraph.Layout</c>
 /// exposes it, and not intended for use outside this package.
 /// </summary>
+[EditorBrowsable(EditorBrowsableState.Never)]
 public class DagLayout
 {
     /// <summary>Every input node, positioned. Empty when the input had no nodes.</summary>
@@ -79,7 +83,7 @@ public class DagLayout
 /// Lays out a dependency graph left to right in layers, for the manifest group graphs.
 /// Infrastructure for the dashboard's own pages; not intended to be called directly.
 /// </summary>
-public static class DagLayoutEngine
+internal static class DagLayoutEngine
 {
     private const double NodeWidth = 180;
     private const double NodeHeight = 40;

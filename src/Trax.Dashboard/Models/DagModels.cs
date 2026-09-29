@@ -5,7 +5,7 @@ namespace Trax.Dashboard.Models;
 /// in the manifest group dependency graph. Infrastructure for the dashboard's dependency graphs;
 /// not intended to be used directly.
 /// </summary>
-public class DagNode
+internal class DagNode
 {
     /// <summary>
     /// The database id of the manifest group the node stands for. Edges refer to
@@ -24,7 +24,7 @@ public class DagNode
 /// A dependency between two <see cref="DagNode"/>s. Infrastructure for the dashboard's
 /// dependency graphs; not intended to be used directly.
 /// </summary>
-public class DagEdge
+internal class DagEdge
 {
     /// <summary>
     /// Upstream node ID (the dependency/parent — rendered on the left).

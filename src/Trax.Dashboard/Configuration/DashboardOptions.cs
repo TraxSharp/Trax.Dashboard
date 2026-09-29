@@ -8,8 +8,7 @@ namespace Trax.Dashboard.Configuration;
 /// <remarks>
 /// <see cref="Extensions.DashboardServiceExtensions.UseTraxDashboard"/> overwrites
 /// <see cref="RoutePrefix"/> with its own <c>routePrefix</c> argument and
-/// <see cref="EnvironmentName"/> with the host's environment, so setting either in
-/// <c>configure</c> has no lasting effect.
+/// <see cref="EnvironmentName"/> with the host's environment, so both are read-only to a host.
 /// </remarks>
 public class DashboardOptions
 {
@@ -18,7 +17,7 @@ public class DashboardOptions
     /// single leading slash and no trailing one. Defaults to <c>/trax</c>. The pages themselves are
     /// always routed under <c>/trax</c>, so a different value produces sidebar links that 404.
     /// </summary>
-    public string RoutePrefix { get; set; } = "/trax";
+    public string RoutePrefix { get; internal set; } = "/trax";
 
     /// <summary>
     /// The product name in the dashboard header, which reads "<c>{Title} Dashboard</c>".
@@ -31,7 +30,7 @@ public class DashboardOptions
     /// Automatically populated from <c>IHostEnvironment.EnvironmentName</c>
     /// when <see cref="Extensions.DashboardServiceExtensions.UseTraxDashboard"/> is called.
     /// </summary>
-    public string EnvironmentName { get; set; } = "";
+    public string EnvironmentName { get; internal set; } = "";
 
     internal string? Policy { get; private set; }
 

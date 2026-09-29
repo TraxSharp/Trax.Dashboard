@@ -61,7 +61,7 @@ public partial class Index
     /// say so.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the page is disposed or a newer load starts.</param>
-    protected override async Task LoadDataAsync(CancellationToken cancellationToken)
+    private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
         await DashboardSettings.InitializeAsync();
 

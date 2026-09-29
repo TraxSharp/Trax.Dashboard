@@ -96,7 +96,7 @@
     /// Asks the grid to load its current page again; in server-side mode this calls
     /// <see cref="ServerLoadData"/>. Does nothing before the grid has rendered.
     /// </summary>
-    public async Task ReloadAsync()
+    internal async Task ReloadAsync()
     {
         if (_grid is not null)
             await _grid.Reload();

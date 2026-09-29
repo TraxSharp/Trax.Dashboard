@@ -4,7 +4,7 @@ namespace Trax.Dashboard.Services.LocalStorage;
 /// The browser <c>localStorage</c> keys the dashboard writes its per-browser preferences under.
 /// Infrastructure used by the dashboard's own services; not intended to be used directly.
 /// </summary>
-public static class StorageKeys
+internal static class StorageKeys
 {
     /// <summary>The selected Radzen theme name, for example <c>material</c> or <c>material-dark</c>.</summary>
     public const string Theme = "trax-theme";

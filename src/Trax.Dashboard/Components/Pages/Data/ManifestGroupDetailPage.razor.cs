@@ -49,7 +49,7 @@ public partial class ManifestGroupDetailPage
 
     /// <inheritdoc/>
     /// <remarks>Returns <see cref="ManifestGroupId"/>.</remarks>
-    protected override object? GetRouteKey() => ManifestGroupId;
+    private protected override object? GetRouteKey() => ManifestGroupId;
 
     private ManifestGroup? _group;
     private DagLayout? _dagLayout;
@@ -86,7 +86,7 @@ public partial class ManifestGroupDetailPage
     /// has unsaved edits. Leaves the page empty when no group has the id.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the page is disposed or a newer load starts.</param>
-    protected override async Task LoadDataAsync(CancellationToken cancellationToken)
+    private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
         using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
 

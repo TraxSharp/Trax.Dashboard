@@ -5,7 +5,7 @@ namespace Trax.Dashboard.Models;
 /// terminal state within the bucket. Chart row model for the dashboard's own home page; not
 /// intended to be used directly.
 /// </summary>
-public class ExecutionTimePoint
+internal class ExecutionTimePoint
 {
     /// <summary>
     /// The axis label: the hour (<c>HH</c>) for the 24-hour view, or <c>HH:mm</c> for the
@@ -28,7 +28,7 @@ public class ExecutionTimePoint
 /// One row of the home page's top-failures panel. Chart row model for the dashboard's own home
 /// page; not intended to be used directly.
 /// </summary>
-public class TrainFailureCount
+internal class TrainFailureCount
 {
     /// <summary>The train's unqualified name (its full name after the last dot).</summary>
     public string Name { get; init; } = "";
@@ -41,7 +41,7 @@ public class TrainFailureCount
 /// One row of the home page's average-duration panel. Chart row model for the dashboard's own
 /// home page; not intended to be used directly.
 /// </summary>
-public class TrainDuration
+internal class TrainDuration
 {
     /// <summary>The train's unqualified name (its full name after the last dot).</summary>
     public string Name { get; init; } = "";
@@ -57,7 +57,7 @@ public class TrainDuration
 /// One bucket of a <see cref="ThroughputSeries"/>. Chart row model for the dashboard's own home
 /// page; not intended to be used directly.
 /// </summary>
-public class ThroughputPoint
+internal class ThroughputPoint
 {
     /// <summary>
     /// The axis label: <c>MMM dd</c> at midnight, otherwise <c>MMM dd HH</c> with a leading space
@@ -74,7 +74,7 @@ public class ThroughputPoint
 /// <c>Other</c> for the rest combined. Chart row model for the dashboard's own home page; not
 /// intended to be used directly.
 /// </summary>
-public class ThroughputSeries
+internal class ThroughputSeries
 {
     /// <summary>The train's unqualified name, or <c>Other</c>.</summary>
     public string Name { get; init; } = "";

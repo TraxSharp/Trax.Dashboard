@@ -67,7 +67,7 @@ public partial class DeadLetterDetailPage
 
     /// <inheritdoc/>
     /// <remarks>Returns <see cref="DeadLetterId"/>.</remarks>
-    protected override object? GetRouteKey() => DeadLetterId;
+    private protected override object? GetRouteKey() => DeadLetterId;
 
     /// <summary>
     /// Loads the dead letter with its manifest, the count and most recent of the manifest's failed
@@ -75,7 +75,7 @@ public partial class DeadLetterDetailPage
     /// page empty when no dead letter has the id.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the page is disposed or a newer load starts.</param>
-    protected override async Task LoadDataAsync(CancellationToken cancellationToken)
+    private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
         using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
 

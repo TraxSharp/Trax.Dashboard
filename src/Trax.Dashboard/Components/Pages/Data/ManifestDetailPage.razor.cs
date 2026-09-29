@@ -38,7 +38,7 @@ public partial class ManifestDetailPage
 
     /// <inheritdoc/>
     /// <remarks>Returns <see cref="ManifestId"/>.</remarks>
-    protected override object? GetRouteKey() => ManifestId;
+    private protected override object? GetRouteKey() => ManifestId;
 
     private Manifest? _manifest;
     private TraxDataGrid<Metadata>? _runsGrid;
@@ -56,7 +56,7 @@ public partial class ManifestDetailPage
     /// when no manifest has the id.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the page is disposed or a newer load starts.</param>
-    protected override async Task LoadDataAsync(CancellationToken cancellationToken)
+    private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
         using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
 

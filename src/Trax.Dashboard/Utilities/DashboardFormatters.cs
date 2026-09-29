@@ -12,7 +12,7 @@ namespace Trax.Dashboard.Utilities;
 /// JSON, and the Radzen badge style for each state. Infrastructure for the dashboard's own
 /// markup; not intended to be called directly.
 /// </summary>
-public static class DashboardFormatters
+internal static class DashboardFormatters
 {
     /// <summary>
     /// Returns the part of a dotted name after the last dot, so a train's interface FullName

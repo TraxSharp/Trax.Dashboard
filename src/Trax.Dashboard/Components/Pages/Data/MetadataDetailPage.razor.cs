@@ -73,14 +73,14 @@ public partial class MetadataDetailPage
 
     /// <inheritdoc/>
     /// <remarks>Returns <see cref="MetadataId"/>.</remarks>
-    protected override object? GetRouteKey() => MetadataId;
+    private protected override object? GetRouteKey() => MetadataId;
 
     /// <summary>
     /// Loads the run and the number of its log entries, and reloads the logs grid, which pages its
     /// rows from the database. Leaves the page empty when no run has the id.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the page is disposed or a newer load starts.</param>
-    protected override async Task LoadDataAsync(CancellationToken cancellationToken)
+    private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
         using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
 

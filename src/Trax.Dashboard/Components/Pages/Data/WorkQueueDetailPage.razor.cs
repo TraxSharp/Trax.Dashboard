@@ -43,14 +43,14 @@ public partial class WorkQueueDetailPage
 
     /// <inheritdoc/>
     /// <remarks>Returns <see cref="WorkQueueId"/>.</remarks>
-    protected override object? GetRouteKey() => WorkQueueId;
+    private protected override object? GetRouteKey() => WorkQueueId;
 
     /// <summary>
     /// Loads the entry and, when it is queued with a subject key, the id of the dispatched entry
     /// whose run still holds the subject or, failing that, of the queued sibling ahead of it.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the page is disposed or a newer load starts.</param>
-    protected override async Task LoadDataAsync(CancellationToken cancellationToken)
+    private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
         using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
         _entry = await context

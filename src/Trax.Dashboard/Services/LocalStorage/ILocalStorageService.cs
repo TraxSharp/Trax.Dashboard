@@ -10,7 +10,7 @@ namespace Trax.Dashboard.Services.LocalStorage;
 /// implementation never throws: when JS interop is unavailable (during prerendering, or after
 /// the circuit disconnects) reads return <see langword="default"/> and writes do nothing.
 /// </remarks>
-public interface ILocalStorageService
+internal interface ILocalStorageService
 {
     /// <summary>
     /// Returns the value stored under <paramref name="key"/>, or <see langword="default"/> when

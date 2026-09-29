@@ -9,7 +9,7 @@ namespace Trax.Dashboard.Services.LocalStorage;
 /// failure. Infrastructure registered by <c>AddTraxDashboard</c>; not intended to be used directly.
 /// </summary>
 /// <param name="jsRuntime">The circuit's JS runtime.</param>
-public class LocalStorageService(IJSRuntime jsRuntime) : ILocalStorageService
+internal class LocalStorageService(IJSRuntime jsRuntime) : ILocalStorageService
 {
     /// <inheritdoc/>
     public async Task<T?> GetAsync<T>(string key)

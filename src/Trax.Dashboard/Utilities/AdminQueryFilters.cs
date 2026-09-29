@@ -13,7 +13,7 @@ namespace Trax.Dashboard.Utilities;
 ///
 /// Infrastructure for the dashboard's own list pages; not intended to be called directly.
 /// </summary>
-public static class AdminQueryFilters
+internal static class AdminQueryFilters
 {
     /// <summary>
     /// Filters out metadata rows (runs) whose <c>Name</c> equals one of <paramref name="adminNames"/>.

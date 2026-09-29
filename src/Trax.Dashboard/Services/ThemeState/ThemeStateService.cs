@@ -10,7 +10,7 @@ namespace Trax.Dashboard.Services.ThemeState;
 /// </summary>
 /// <param name="localStorage">Browser storage the theme is read from and written to.</param>
 /// <param name="radzenThemeService">Radzen's theme service, which re-renders with the new theme.</param>
-public class ThemeStateService(ILocalStorageService localStorage, ThemeService radzenThemeService)
+internal class ThemeStateService(ILocalStorageService localStorage, ThemeService radzenThemeService)
     : IThemeStateService
 {
     private const string DefaultTheme = "material";

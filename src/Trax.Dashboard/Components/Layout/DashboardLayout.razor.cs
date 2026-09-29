@@ -25,7 +25,7 @@ public partial class DashboardLayout
     /// Whether the sidebar is expanded. Not a component parameter: the layout sets it from storage
     /// and from the header's toggle, and persists each toggle.
     /// </summary>
-    public bool SidebarExpanded { get; set; } = true;
+    private bool SidebarExpanded { get; set; } = true;
 
     /// <summary>
     /// On the first render only, initializes the theme and restores the stored sidebar state,

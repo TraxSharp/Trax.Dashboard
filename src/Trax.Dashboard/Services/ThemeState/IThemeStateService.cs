@@ -5,7 +5,7 @@ namespace Trax.Dashboard.Services.ThemeState;
 /// <c>localStorage</c>. Infrastructure used by the dashboard layout; not intended to be
 /// called directly.
 /// </summary>
-public interface IThemeStateService
+internal interface IThemeStateService
 {
     /// <summary>
     /// The current Radzen theme name. <c>material</c> until <see cref="InitializeAsync"/> loads a

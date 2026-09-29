@@ -5,7 +5,7 @@ namespace Trax.Dashboard.Models;
 /// all of its manifests. Row model for the dashboard's own manifest groups page; not intended to be
 /// used directly.
 /// </summary>
-public class GroupSummary
+internal class GroupSummary
 {
     /// <summary>The manifest group's database id.</summary>
     public long Id { get; init; }
