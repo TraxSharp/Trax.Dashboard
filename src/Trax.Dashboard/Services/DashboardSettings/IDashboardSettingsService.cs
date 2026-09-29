@@ -5,6 +5,13 @@ public interface IDashboardSettingsService
     TimeSpan PollingInterval { get; }
     DateTime LastPollTime { get; }
     bool HideAdminTrains { get; }
+
+    /// <summary>
+    /// The short (unqualified) class names of the scheduler's administrative trains, for
+    /// display. The dashboard does not filter by these: a short name can collide with a
+    /// consumer's own train. Filters match a train's stored name, its interface FullName,
+    /// against <c>Trax.Scheduler.Configuration.AdminTrains.FullNames</c>, as the API does.
+    /// </summary>
     IReadOnlyList<string> AdminTrainNames { get; }
     Task InitializeAsync();
     Task SetPollingIntervalAsync(int seconds);
