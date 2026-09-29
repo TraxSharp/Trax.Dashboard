@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Radzen;
 using Trax.Dashboard.Components;
 using Trax.Dashboard.Configuration;
@@ -75,9 +77,22 @@ public static class DashboardServiceExtensions
     }
 
     /// <summary>
-    /// Maps the Trax.Core Dashboard Blazor components at the configured route prefix.
+    /// Maps the Trax.Core Dashboard Blazor components at the configured route prefix, and
+    /// applies the authorization posture chosen in <c>AddTraxDashboard</c> to every endpoint
+    /// they map: the pages and the Blazor circuit hub.
     /// </summary>
-    public static WebApplication UseTraxDashboard(
+    /// <returns>
+    /// The convention builder for those endpoints, so the host can add its own conventions
+    /// (<c>RequireHost</c>, rate limiting, a further <c>RequireAuthorization</c>). Conventions
+    /// added there are additive; they do not replace the posture.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// No posture was chosen (call <see cref="DashboardOptions.RequirePolicy"/>,
+    /// <see cref="DashboardOptions.RequireRoles"/> or
+    /// <see cref="DashboardOptions.AllowAnonymousDashboard"/>), or the named policy is not
+    /// registered.
+    /// </exception>
+    public static RazorComponentsEndpointConventionBuilder UseTraxDashboard(
         this WebApplication app,
         string routePrefix = "/trax",
         string? title = null
@@ -86,6 +101,8 @@ public static class DashboardServiceExtensions
         routePrefix = "/" + routePrefix.Trim('/');
 
         var options = app.Services.GetRequiredService<DashboardOptions>();
+        VerifyAuthorizationPosture(app, options);
+
         options.RoutePrefix = routePrefix;
 
         if (title is not null)
@@ -96,8 +113,62 @@ public static class DashboardServiceExtensions
         app.UseAntiforgery();
 
         app.MapStaticAssets();
-        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+        var endpoints = app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
-        return app;
+        if (options.AnonymousAllowed)
+        {
+            app.Services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Trax.Dashboard")
+                .LogWarning(
+                    "AllowAnonymousDashboard() is set: the Trax dashboard at {RoutePrefix} "
+                        + "applies no authorization of its own, so anyone who can reach it can "
+                        + "use every page, including queueing, running and cancelling trains and "
+                        + "changing scheduler settings. Use RequirePolicy() or RequireRoles() in "
+                        + "AddTraxDashboard() unless something in front of it is the gate.",
+                    routePrefix
+                );
+            return endpoints;
+        }
+
+        endpoints.RequireAuthorization(
+            new AuthorizeAttribute
+            {
+                Policy = options.Policy,
+                Roles = options.Roles is null ? null : string.Join(",", options.Roles),
+            }
+        );
+        return endpoints;
+    }
+
+    private static void VerifyAuthorizationPosture(WebApplication app, DashboardOptions options)
+    {
+        if (!options.HasAuthorizationPosture)
+            throw new InvalidOperationException(
+                "UseTraxDashboard() needs to know who may use the dashboard, which can queue, "
+                    + "run and cancel trains and change scheduler settings. Choose one in "
+                    + "AddTraxDashboard(o => ...): o.RequirePolicy(\"<policy>\"), "
+                    + "o.RequireRoles(\"<role>\"), or o.AllowAnonymousDashboard() when something "
+                    + "in front of it (a fallback policy, an ingress rule) is the gate."
+            );
+
+        if (options.AnonymousAllowed)
+            return;
+
+        // AddRazorComponents(), which AddTraxDashboard() calls, registers the authorization
+        // services, so only the policy name can be missing here.
+        if (
+            options.Policy is not null
+            && app
+                .Services.GetRequiredService<IAuthorizationPolicyProvider>()
+                .GetPolicyAsync(options.Policy)
+                .GetAwaiter()
+                .GetResult()
+                is null
+        )
+            throw new InvalidOperationException(
+                $"The dashboard requires the authorization policy '{options.Policy}', which is "
+                    + "not registered. Add it with builder.Services.AddAuthorization(o => "
+                    + $"o.AddPolicy(\"{options.Policy}\", ...))."
+            );
     }
 }

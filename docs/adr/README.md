@@ -35,7 +35,7 @@ The format is `.claude/skills/recording-decisions/ADR-FORMAT.md`.
 
 | Area | ADRs |
 | --- | --- |
-| `platform` | [0001](./0001-the-dashboard-mounts-into-the-host-app.md) |
+| `platform` | [0001](./0001-the-dashboard-mounts-into-the-host-app.md), [0002](./0002-the-dashboard-requires-an-authorization-posture.md) |
 | `ui` | [0001](./0001-the-dashboard-mounts-into-the-host-app.md) |
 
 ## All of them
@@ -43,3 +43,4 @@ The format is `.claude/skills/recording-decisions/ADR-FORMAT.md`.
 | # | Decision | Areas |
 | --- | --- | --- |
 | [0001](./0001-the-dashboard-mounts-into-the-host-app.md) | The dashboard mounts into the host's application | platform, ui |
+| [0002](./0002-the-dashboard-requires-an-authorization-posture.md) | The dashboard refuses to start without an authorization posture | platform |
