@@ -204,6 +204,28 @@ public class ReadViewParityTests
             );
     }
 
+    [Test]
+    public async Task Manifests_list_reads_one_page_of_manifests()
+    {
+        for (var i = 0; i < 60; i++)
+            await SeedManifestAsync($"group-{i}");
+        _reads.Reset();
+
+        var page = _ctx.RenderComponent<ManifestsPage>();
+
+        page.WaitForAssertion(
+            () => page.FindAll("tr.rz-data-row").Count.Should().Be(20),
+            TimeSpan.FromSeconds(10)
+        );
+        _reads
+            .CountOf<Manifest>()
+            .Should()
+            .BeLessThanOrEqualTo(
+                20,
+                "the API pages manifests, so the page reads only the page it shows"
+            );
+    }
+
     private static string CardValue<T>(IRenderedComponent<T> page, string caption)
         where T : IComponent =>
         page.FindAll(".rz-card")
