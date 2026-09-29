@@ -5,7 +5,7 @@ namespace Trax.Dashboard.Utilities;
 
 /// <summary>
 /// Hides the scheduler's administrative trains from a query. A row is hidden when its name is
-/// one of <paramref name="adminNames"/> exactly, which the pages pass as
+/// one of the admin names passed in exactly, which the pages pass as
 /// <c>AdminTrains.FullNames</c>: a train's stored name is its interface FullName, and that is
 /// the list and the comparison the API's <c>hideAdminTrains</c> filter uses, so both surfaces
 /// hide the same rows. A suffix match on the short names also hid a consumer's own train whose
