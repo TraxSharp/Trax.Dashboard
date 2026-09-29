@@ -68,7 +68,7 @@ public class RunTrainDialogTests
         var dialog = RenderDialog();
         await ClickEnqueue(dialog);
 
-        dialog.FindAll(".rz-alert").Select(a => a.TextContent.Trim()).Should().BeEmpty();
+        dialog.FindAll(ErrorAlerts).Select(a => a.TextContent.Trim()).Should().BeEmpty();
         submitter
             .Input.Should()
             .BeEquivalentTo(
@@ -91,7 +91,7 @@ public class RunTrainDialogTests
         dialog.Find("textarea").Change("""{"Mode":"Slow","Label":"from json"}""");
         await ClickEnqueue(dialog);
 
-        dialog.FindAll(".rz-alert").Select(a => a.TextContent.Trim()).Should().BeEmpty();
+        dialog.FindAll(ErrorAlerts).Select(a => a.TextContent.Trim()).Should().BeEmpty();
         submitter
             .Input.Should()
             .BeEquivalentTo(
@@ -125,7 +125,7 @@ public class RunTrainDialogTests
         dialog.WaitForAssertion(
             () =>
                 dialog
-                    .FindAll(".rz-alert")
+                    .FindAll(ErrorAlerts)
                     .Select(a => a.TextContent)
                     .Should()
                     .ContainSingle()
@@ -179,7 +179,7 @@ public class RunTrainDialogTests
     )
     {
         dialog
-            .FindAll(".rz-alert")
+            .FindAll(ErrorAlerts)
             .Select(a => a.TextContent)
             .Should()
             .ContainSingle()
@@ -205,6 +205,10 @@ public class RunTrainDialogTests
 
         return _ctx.RenderComponent<RunTrainDialog>(p => p.Add(x => x.Registration, registration));
     }
+
+    // The dialog always shows the subject-serialization warning as an alert of its own; these
+    // tests are about the error alert beside it.
+    private const string ErrorAlerts = ".rz-alert:not([data-testid='run-subject-bypass-warning'])";
 
     private static async Task ClickEnqueue(IRenderedComponent<RunTrainDialog> dialog)
     {
