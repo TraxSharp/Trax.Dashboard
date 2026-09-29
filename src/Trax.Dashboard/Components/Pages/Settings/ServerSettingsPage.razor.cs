@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Radzen;
+using Trax.Dashboard.Services.LogLevels;
 using Trax.Scheduler.Configuration;
 using Trax.Scheduler.Services.Operations;
 
@@ -49,7 +52,8 @@ public partial class ServerSettingsPage
     private static readonly List<string> TimeUnits = ["seconds", "minutes", "hours", "days"];
 
     // ── Logging state ──
-    private IConfigurationRoot? _configRoot;
+    private IConfiguration? _configuration;
+    private DashboardLogLevelOverrides? _logLevelOverrides;
     private bool _loggingAvailable;
     private List<LogLevelEntry> _logLevels = [];
     private Dictionary<string, string> _savedLogLevels = new();
@@ -133,9 +137,12 @@ public partial class ServerSettingsPage
         }
 
         // Logging
-        _configRoot = ServiceProvider.GetService<IConfiguration>() as IConfigurationRoot;
-        var loggingSection = _configRoot?.GetSection("Logging:LogLevel");
-        _loggingAvailable = _configRoot is not null && loggingSection?.GetChildren().Any() == true;
+        _configuration = ServiceProvider.GetService<IConfiguration>();
+        _logLevelOverrides = ServiceProvider.GetService<DashboardLogLevelOverrides>();
+        _loggingAvailable =
+            _configuration is not null
+            && _logLevelOverrides is not null
+            && _configuration.GetSection("Logging:LogLevel").GetChildren().Any();
 
         if (_loggingAvailable)
         {
@@ -240,30 +247,55 @@ public partial class ServerSettingsPage
 
     // ── Logging helpers ──
 
+    /// <summary>
+    /// One row per category the host configures under <c>Logging:LogLevel</c>, showing a level
+    /// saved from this page over the configured one.
+    /// </summary>
     private void LoadLogging()
     {
-        _logLevels = _configRoot!
+        var overrides = _logLevelOverrides!.Levels;
+        _logLevels = _configuration!
             .GetSection("Logging:LogLevel")
             .GetChildren()
             .Select(section => new LogLevelEntry
             {
                 Category = section.Key,
-                Level = section.Value ?? "Information",
+                Level = overrides.TryGetValue(section.Key, out var saved)
+                    ? saved.ToString()
+                    : section.Value ?? "Information",
             })
-            .OrderBy(e => e.Category == "Default" ? "" : e.Category)
+            .OrderBy(e =>
+                e.Category == DashboardLogLevelOverrides.DefaultCategory ? "" : e.Category
+            )
             .ToList();
     }
 
-    private void SaveLogging()
+    /// <summary>
+    /// Applies the changed levels to the host's logger filters, then reads back the level each
+    /// category is filtered at. Returns the categories where that is not the level saved, which
+    /// happens when the host sets the filter itself after the dashboard.
+    /// </summary>
+    private List<string> SaveLogging()
     {
-        if (_configRoot is null)
-            return;
+        var changed = _logLevels
+            .Where(e => e.Level != _savedLogLevels.GetValueOrDefault(e.Category, "Information"))
+            .Select(e => KeyValuePair.Create(e.Category, Enum.Parse<LogLevel>(e.Level)))
+            .ToList();
+        if (changed.Count == 0)
+            return [];
 
-        foreach (var entry in _logLevels)
-            _configRoot[$"Logging:LogLevel:{entry.Category}"] = entry.Level;
+        _logLevelOverrides!.Set(changed);
 
-        _configRoot.Reload();
+        var filters = ServiceProvider
+            .GetRequiredService<IOptionsMonitor<LoggerFilterOptions>>()
+            .CurrentValue;
+        var notApplied = changed
+            .Where(c => DashboardLogLevelOverrides.EffectiveLevel(filters, c.Key) != c.Value)
+            .Select(c => c.Key)
+            .ToList();
+
         SnapshotLoggingState();
+        return notApplied;
     }
 
     private void ResetLoggingDefaults()
@@ -314,7 +346,23 @@ public partial class ServerSettingsPage
 
         if (_loggingAvailable)
         {
-            SaveLogging();
+            var notApplied = SaveLogging();
+            if (notApplied.Count > 0)
+            {
+                NotificationService.Notify(
+                    new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Log levels not applied",
+                        Detail =
+                            "The host sets these categories' levels after the dashboard, so the "
+                            + $"saved level is not the one in force: {string.Join(", ", notApplied)}.",
+                        Duration = 8000,
+                    }
+                );
+                return;
+            }
+
             details.Add("Log levels updated.");
         }
 
