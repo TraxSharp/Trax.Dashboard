@@ -19,9 +19,18 @@ namespace Trax.Dashboard.Components.Shared;
 /// or clicking the highlighted node in a DAG graph) is intercepted via
 /// <see cref="NavigationManager.RegisterLocationChangingHandler"/> — the navigation is
 /// prevented and <see cref="RefreshNowAsync"/> is called instead.
+///
+/// A load that throws during a background tick is reported through
+/// <see cref="IDashboardSettingsService.NotifyPollFailed"/> and retried on the next tick.
+/// Infrastructure for the dashboard's own pages; it is public only because those pages derive
+/// from it, and is not intended for use outside this package.
 /// </summary>
 public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
 {
+    /// <summary>
+    /// The circuit's dashboard preferences, injected. Supplies the polling interval and receives
+    /// <see cref="IDashboardSettingsService.NotifyPolled"/> after every completed load.
+    /// </summary>
     [Inject]
     protected IDashboardSettingsService DashboardSettings { get; set; } = default!;
 
@@ -32,6 +41,11 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     private object? _lastRouteKey;
     private IDisposable? _locationChangingRegistration;
 
+    /// <summary>
+    /// <see langword="true"/> until the first load finishes, and again during a
+    /// <see cref="RefreshNowAsync"/> call made with <c>showLoading: true</c>. Background poll
+    /// ticks never set it.
+    /// </summary>
     protected bool IsLoading { get; set; } = true;
 
     /// <summary>
@@ -88,6 +102,15 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     /// </summary>
     protected CancellationToken DisposalToken => _cts?.Token ?? CancellationToken.None;
 
+    /// <summary>
+    /// Loads the page's data into component state. Called once on initialization, on every
+    /// poll tick that is not paused, on <see cref="RefreshNowAsync"/>, and after a successful
+    /// <see cref="RunBatchOperationAsync"/>. Background ticks run it on the renderer's
+    /// synchronization context and re-render afterwards.
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// Cancelled when the component is disposed or a newer refresh supersedes this one.
+    /// </param>
     protected abstract Task LoadDataAsync(CancellationToken cancellationToken);
 
     /// <summary>
@@ -97,6 +120,11 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     /// </summary>
     protected virtual object? GetRouteKey() => null;
 
+    /// <summary>
+    /// Registers the same-URL navigation handler, initializes <see cref="DashboardSettings"/>,
+    /// runs the first <see cref="LoadDataAsync"/> and starts the poll loop. A derived page that
+    /// overrides this must call the base implementation.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         _locationChangingRegistration = NavigationManager.RegisterLocationChangingHandler(
@@ -122,6 +150,11 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
         _ = PollAsync(token);
     }
 
+    /// <summary>
+    /// Reloads immediately, showing the loading state, when <see cref="GetRouteKey"/> returns a
+    /// different value than it did for the previous render. A derived page that overrides this
+    /// must call the base implementation.
+    /// </summary>
     protected override async Task OnParametersSetAsync()
     {
         var key = GetRouteKey();
@@ -215,6 +248,10 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Stops the poll loop, cancels <see cref="DisposalToken"/> and unregisters the navigation
+    /// handler. An override must call the base implementation.
+    /// </summary>
     public virtual ValueTask DisposeAsync()
     {
         _locationChangingRegistration?.Dispose();

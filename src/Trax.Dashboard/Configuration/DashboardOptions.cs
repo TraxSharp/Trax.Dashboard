@@ -1,14 +1,28 @@
 namespace Trax.Dashboard.Configuration;
 
+/// <summary>
+/// Settings for the Trax Dashboard, passed to the <c>configure</c> callback of
+/// <see cref="Extensions.DashboardServiceExtensions.AddTraxDashboard(Microsoft.Extensions.DependencyInjection.IServiceCollection, System.Action{DashboardOptions}?)"/>
+/// and registered as a singleton.
+/// </summary>
+/// <remarks>
+/// <see cref="Extensions.DashboardServiceExtensions.UseTraxDashboard"/> overwrites
+/// <see cref="RoutePrefix"/> with its own <c>routePrefix</c> argument and
+/// <see cref="EnvironmentName"/> with the host's environment, so setting either in
+/// <c>configure</c> has no lasting effect.
+/// </remarks>
 public class DashboardOptions
 {
     /// <summary>
-    /// The URL prefix where the dashboard is mounted (e.g., "/trax").
+    /// The prefix the sidebar builds its links from, normalised by <c>UseTraxDashboard</c> to a
+    /// single leading slash and no trailing one. Defaults to <c>/trax</c>. The pages themselves are
+    /// always routed under <c>/trax</c>, so a different value produces sidebar links that 404.
     /// </summary>
     public string RoutePrefix { get; set; } = "/trax";
 
     /// <summary>
-    /// Title displayed in the dashboard header.
+    /// The product name in the dashboard header, which reads "<c>{Title} Dashboard</c>".
+    /// Defaults to <c>Trax</c>; the <c>title</c> argument of <c>UseTraxDashboard</c> overrides it.
     /// </summary>
     public string Title { get; set; } = "Trax";
 
