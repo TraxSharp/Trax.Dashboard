@@ -192,6 +192,8 @@ namespace Trax.Dashboard.Components.Pages.Data
         public PersistedOperationDetailPage() { }
         [Microsoft.AspNetCore.Components.Parameter]
         public string Id { get; set; }
+        [Microsoft.AspNetCore.Components.SupplyParameterFromQuery(Name="tenant")]
+        public string? Tenant { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
         protected override System.Threading.Tasks.Task OnInitializedAsync() { }
     }
@@ -204,6 +206,8 @@ namespace Trax.Dashboard.Components.Pages.Data
         public string? ExistingDocument { get; set; }
         [Microsoft.AspNetCore.Components.Parameter]
         public string? ExistingId { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public string? ExistingTenantKey { get; set; }
         [Microsoft.AspNetCore.Components.Parameter]
         public int ExistingVersion { get; set; }
         [Microsoft.AspNetCore.Components.Parameter]

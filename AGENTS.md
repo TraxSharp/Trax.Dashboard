@@ -20,6 +20,7 @@ if your work contradicts one, say so rather than silently overriding it.
 | the queue dialog, the Re-queue button, or anything else that enqueues | central `docs/0017`: enqueue through `IOperationsService` inside the `"dashboard"` trusted scope, never by building a work queue row; per-train `[TraxAuthorize]` does not apply because the dashboard is gated as a whole by its host |
 | the work queue pages (Staged, Subject, Waiting On) or the Failure Class field | central `docs/0018`, `docs/0019` and `docs/0020` |
 | the Run dialog | central `docs/0019`: it submits straight to the job submitter and bypasses subject serialization by design, so it warns and points at Queue rather than waiting |
+| the persisted-operations pages | [0004](./docs/adr/0004-persisted-operations-pages-call-the-api-resolvers.md): read and write through the API package's resolvers, addressed by tenant and id |
 
 Decisions binding more than one repo live in the central corpus at `Trax.Docs/adr/`, whose
 index lists them by repo. Nineteen name `dashboard`: the workspace-wide conventions, `0016`
