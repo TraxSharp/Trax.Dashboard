@@ -1,82 +1,48 @@
 # Trax.Dashboard
 
-[![Build](https://github.com/TraxSharp/Trax.Dashboard/actions/workflows/nuget_release.yml/badge.svg)](https://github.com/TraxSharp/Trax.Dashboard/actions/workflows/nuget_release.yml)
-[![NuGet Version](https://img.shields.io/nuget/v/Trax.Dashboard)](https://www.nuget.org/packages/Trax.Dashboard/)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/Trax.Dashboard)](https://www.nuget.org/packages/Trax.Dashboard/)
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/TraxSharp/Trax.Dashboard/blob/main/LICENSE)
-[![Last Commit](https://img.shields.io/github/last-commit/TraxSharp/Trax.Dashboard)](https://github.com/TraxSharp/Trax.Dashboard/commits/main)
+[![Build](https://github.com/TraxSharp/Trax.Dashboard/actions/workflows/nuget_release.yml/badge.svg?branch=main)](https://github.com/TraxSharp/Trax.Dashboard/actions/workflows/nuget_release.yml?query=branch%3Amain)
+[![NuGet](https://img.shields.io/nuget/v/Trax.Dashboard)](https://www.nuget.org/packages/Trax.Dashboard)
 [![codecov](https://codecov.io/gh/TraxSharp/Trax.Dashboard/branch/main/graph/badge.svg)](https://codecov.io/gh/TraxSharp/Trax.Dashboard)
-[![Docs](https://img.shields.io/badge/docs-traxsharp.net-blue)](https://traxsharp.net/docs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/TraxSharp/Trax.Dashboard/blob/main/LICENSE)
+[![Docs](https://img.shields.io/badge/docs-traxsharp.net-blue)](https://traxsharp.net/docs/dashboard)
 
-Operations control room for [Trax](https://www.nuget.org/packages/Trax.Effect/). A Blazor Server dashboard for monitoring train journeys, timetables, dead letters, and live station service configuration.
+> Part of [Trax](https://github.com/TraxSharp): business logic you can call, schedule, or serve as an API, with every
+> run recorded in your Postgres. [Docs](https://traxsharp.net/docs) · [Getting started](https://traxsharp.net/docs/getting-started) · [All repos](https://github.com/TraxSharp)
 
-## The Trax Stack
+Trax.Dashboard is a Blazor Server dashboard for Trax runs, schedules, dead letters and the work queue. It mounts at
+`/trax` inside the ASP.NET Core app that already hosts Trax, so there is no separate service to deploy. It builds on
+[Trax.Api](https://github.com/TraxSharp/Trax.Api) and [Trax.Scheduler](https://github.com/TraxSharp/Trax.Scheduler).
 
-Trax is a layered framework split across several repos. You can stop at whatever layer solves your problem. **You are here: Trax.Dashboard.**
+<!-- screenshot: dashboard run view -->
 
-| Repo | Adds |
-|------|------|
-| [Trax.Core](https://github.com/TraxSharp/Trax.Core) | Pipelines, junctions, railway error propagation |
-| [Trax.Effect](https://github.com/TraxSharp/Trax.Effect) | Execution logging, DI, pluggable storage |
-| [Trax.Mediator](https://github.com/TraxSharp/Trax.Mediator) | Decoupled dispatch via `TrainBus` |
-| [Trax.Scheduler](https://github.com/TraxSharp/Trax.Scheduler) | Cron schedules, retries, dead-letter queues |
-| [Trax.Api](https://github.com/TraxSharp/Trax.Api) | GraphQL API for remote access |
-| **[Trax.Dashboard](https://github.com/TraxSharp/Trax.Dashboard)** | Blazor monitoring UI |
-| [Trax.Cli](https://github.com/TraxSharp/Trax.Cli) | `trax-cli` project scaffolding tool |
-| [Trax.Samples](https://github.com/TraxSharp/Trax.Samples) | Sample apps and a `dotnet new` template |
-
-Full documentation: [traxsharp.net/docs](https://traxsharp.net/docs).
-
-## What This Does
-
-Drop a control room into any ASP.NET Core application that uses Trax. Two lines of code give you a full operations dashboard for watching train journeys in real time, browsing the timetable, inspecting lost shipments, and toggling station services without restarting.
-
-No separate service to deploy. It mounts directly into your existing application as a Blazor Server component.
-
-## Installation
-
-Install it in the ASP.NET Core application that already hosts Trax. The example below also uses the
-Postgres data provider:
+## Install
 
 ```bash
 dotnet add package Trax.Dashboard
-dotnet add package Trax.Effect.Data.Postgres
+dotnet add package Trax.Effect.Data.Postgres   # storage the example below reads from
 ```
 
-## Setup
+## Example
 
 ```csharp
-using Trax.Dashboard.Extensions;
-using Trax.Effect.Data.Postgres.Extensions;
-using Trax.Effect.Extensions;
-using Trax.Mediator.Extensions;
-
-var builder = WebApplication.CreateBuilder(args);
-
 builder.Services.AddTrax(trax =>
     trax.AddEffects(effects => effects.UsePostgres(connectionString))
-        .AddMediator(typeof(Program).Assembly)
-);
+        .AddMediator(typeof(Program).Assembly));
 
 builder.Services.AddAuthorization(o =>
-    o.AddPolicy("TraxAdmin", p => p.RequireRole("Admin"))
-);
+    o.AddPolicy("TraxAdmin", p => p.RequireRole("Admin")));
 
-// Must follow AddTrax; it checks for it and throws otherwise.
+// Must follow AddTrax; it throws otherwise.
 builder.AddTraxDashboard(dashboard => dashboard.RequirePolicy("TraxAdmin"));
 
 var app = builder.Build();
-
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseTraxDashboard();    // Mounts at /trax
-
-app.Run();
+app.UseTraxDashboard();   // mounts at /trax
 ```
 
-The host's csproj must also opt into the framework's Blazor web assets, or `_framework/blazor.web.js`
-is missing and the dashboard renders but ignores every click:
+The host's csproj must opt into the framework's Blazor web assets. Without it `_framework/blazor.web.js` is missing
+and the dashboard renders but ignores every click:
 
 ```xml
 <PropertyGroup>
@@ -84,67 +50,76 @@ is missing and the dashboard renders but ignores every click:
 </PropertyGroup>
 ```
 
-Use `builder.AddTraxDashboard()` on the `WebApplicationBuilder` rather than
-`builder.Services.AddTraxDashboard()`: only the builder overload calls
-`builder.WebHost.UseStaticWebAssets()` outside Development, which the dashboard's CSS and JS need in
-every environment.
+Call `AddTraxDashboard` on the `WebApplicationBuilder`, not on `builder.Services`: only that overload serves the
+dashboard's CSS and JS outside Development. The pages always live under `/trax`, so leave the route prefix of
+`UseTraxDashboard()` at its default.
 
-The mount path is fixed. Every page carries a compile-time `@page "/trax/..."` route, so the
-route prefix argument to `UseTraxDashboard()` only changes the links the sidebar builds and
-leaves the pages where they are. Passing one gives you navigation that points at nothing.
+## Authorization
 
-The dashboard requires an authorization posture, and `UseTraxDashboard()` refuses to start
-without one. Choose it in `AddTraxDashboard`: `RequirePolicy("...")` with a policy registered
-through `AddAuthorization`, `RequireRoles(...)`, or both, in which case a caller must satisfy
-both. It applies to every dashboard endpoint, the pages and the Blazor circuit hub alike.
-`AllowAnonymousDashboard()` opts out explicitly, for a host that gates `/trax` some other way
-(a fallback policy, an ingress rule); it logs a warning on every start.
+The dashboard can queue, run and cancel trains and change scheduler settings, so `UseTraxDashboard()` refuses to start
+until you say who may use it. The posture covers every endpoint the dashboard maps, the Blazor circuit hub included.
+
+| Option | Means |
+|---|---|
+| `RequirePolicy("name")` | The caller must satisfy a policy registered with `AddAuthorization`; the host fails at startup if it is missing |
+| `RequireRoles("Admin", "Ops")` | The caller must hold one of the roles. Combined with `RequirePolicy`, both must pass |
+| `AllowAnonymousDashboard()` | No gate of its own, for a host that protects `/trax` another way (a fallback policy, an ingress rule). Logs a warning on every start |
 
 ## Pages
 
-### Home
+| Route | Shows |
+|---|---|
+| `/trax` | Server health, run counts by state, runs over time, recent failures and throughput |
+| `/trax/trains` | Every registered train with its input and output types; run or queue one with new input |
+| `/trax/data/metadata` | The run records: filter by state, train or time, open a run to read the failing junction and exception, cancel a running one |
+| `/trax/data/logs` | Logs captured during runs |
+| `/trax/data/manifests` | Schedules from Trax.Scheduler: cron or interval, retry policy, last run; enable, disable or trigger one |
+| `/trax/data/manifest-groups` | Per-group statistics and dispatch settings (max active jobs, priority) |
+| `/trax/data/dead-letters` | Runs that exhausted their retries; requeue or acknowledge them |
+| `/trax/data/work-queue` | Entries waiting to be dispatched, staged ones included; cancel one or many |
+| `/trax/data/persisted-operations` | The GraphQL persisted operations the API accepts; upload, edit, deactivate |
+| `/trax/settings/effects` | Turn effect providers on or off and change their settings without a restart |
+| `/trax/settings/server` | Scheduler settings: polling interval, max active jobs, worker count, default retry policy |
+| `/trax/settings/user` | Per-browser preferences: the refresh interval and which home sections show |
 
-Overview of the whole network. Summary cards showing train counts by state, a donut chart of journey outcomes, and a 24-hour departure timeline.
+## What it does not do
 
-### Trains
+- It is a Razor Class Library for Interactive Server rendering. It does not run as a standalone app or as WebAssembly.
+- It reads the host's own Trax database. One dashboard shows one Trax deployment.
 
-The departure board. Grid of all registered `IServiceTrain<,>` implementations discovered in your assemblies: interface type, concrete type, cargo in, cargo out, and DI lifetime. Useful for verifying that your trains are wired up correctly.
+## Where this fits
 
-### Data
+Trax is split into layers, one repo each. Take the ones you need; the trains you wrote do not change. **You are here: Trax.Dashboard.**
 
-- **Metadata**: the journey log. Execution history for every train run. Filter by state, train name, or time range. Cancel trains in transit directly from the grid.
-- **Logs**: application logs captured during train journeys.
-- **Manifests**: the timetable. Scheduled train definitions from Trax.Scheduler. View schedule, retry policy, last departure time, and enable/disable individual manifests.
-- **Manifest Groups**: fleet-level statistics and dispatch settings (max active trains, priority) per group.
-- **Dead Letters**: the lost shipment office. Trains that derailed beyond their retry limit. Inspect the failure details and decide whether to re-dispatch or discard.
-- **Work Queue**: runs waiting to be dispatched, including staged entries. Cancel pending entries individually or in bulk.
-- **Persisted Operations**: the GraphQL persisted-operation documents the API accepts. Upload, edit and deactivate them.
+| Repo | What it adds |
+|---|---|
+| [Trax.Core](https://github.com/TraxSharp/Trax.Core) | Trains, junctions and the chain, with no database and no DI container |
+| [Trax.Effect](https://github.com/TraxSharp/Trax.Effect) | A recorded run for every execution (Postgres, SQLite or in memory), DI, effect providers, the state-machine engine |
+| [Trax.Mediator](https://github.com/TraxSharp/Trax.Mediator) | The train bus: run a train by handing over its input, with every chain checked at startup |
+| [Trax.Scheduler](https://github.com/TraxSharp/Trax.Scheduler) | Cron and interval schedules, retries, dead letters, and workers on other machines or in Lambda |
+| [Trax.Api](https://github.com/TraxSharp/Trax.Api) | GraphQL generated from your trains, with authentication, audit and typed clients |
+| **[Trax.Dashboard](https://github.com/TraxSharp/Trax.Dashboard)** | **A Blazor Server UI for runs, schedules and dead letters, mounted in your app** |
+| [Trax.Cli](https://github.com/TraxSharp/Trax.Cli) | The `trax` tool: scaffold a hub and trains from an OpenAPI or GraphQL schema, and state-machine codegen |
+| [Trax.Samples](https://github.com/TraxSharp/Trax.Samples) | Complete sample apps, and the `trax-api`, `trax-scheduler` and `trax-hub` templates |
 
-### Effects
+Docs live in [Trax.Docs](https://github.com/TraxSharp/Trax.Docs) and are published at [traxsharp.net/docs](https://traxsharp.net/docs).
 
-Toggle individual station services on or off at runtime. Adjust settings like log levels and serialization options without restarting the application.
+## Documentation
 
-### Server Settings
+- [Dashboard](https://traxsharp.net/docs/dashboard): setup, pages and authorization
+- [AddTraxDashboard](https://traxsharp.net/docs/sdk-reference/dashboard-api/add-trax-dashboard)
+- [UseTraxDashboard](https://traxsharp.net/docs/sdk-reference/dashboard-api/use-trax-dashboard)
+- [DashboardOptions](https://traxsharp.net/docs/sdk-reference/dashboard-api/dashboard-options)
+- [What gets recorded](https://traxsharp.net/docs/effect/metadata)
 
-Scheduler settings at runtime: the administrative trains, polling interval, max active jobs, worker count and default retry policy.
+## Contributing
 
-### User Settings
-
-Per-session preferences: polling interval for live data, visibility toggles for dashboard sections.
-
-## Requirements
-
-Trax.Dashboard is a Razor Class Library built on Blazor Server with [Radzen](https://www.radzen.com/) components. Your host application needs:
-
-- ASP.NET Core (the Web SDK)
-- Interactive Server render mode enabled (Blazor Server)
-
-The dashboard handles its own static assets and routing, so you don't need to configure Radzen separately.
+Read [AGENTS.md](https://github.com/TraxSharp/Trax.Dashboard/blob/main/AGENTS.md) before changing code. Report
+vulnerabilities privately as described in [SECURITY.md](https://github.com/TraxSharp/Trax.Dashboard/blob/main/SECURITY.md).
 
 ## License
 
-MIT. See [LICENSE](https://github.com/TraxSharp/Trax.Dashboard/blob/main/LICENSE).
+MIT. There is no commercial edition, and there will not be one.
 
-## Trademark & Brand Notice
-
-Trax is an open-source .NET framework provided by TraxSharp. This project is an independent community effort and is not affiliated with, sponsored by, or endorsed by the Utah Transit Authority, Trax Retail, or any other entity using the "Trax" name in other industries.
+Trax is an independent open-source project and is not affiliated with the Utah Transit Authority, Trax Retail, or any
+other organization using the Trax name.
