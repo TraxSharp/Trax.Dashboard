@@ -141,6 +141,18 @@
           "Trax.Effect.Data": "1.57.4"
         }
       },
+      "Trax.Effect.Provider.Parameter": {
+        "type": "Direct",
+        "requested": "[1.57.4, )",
+        "resolved": "1.57.4",
+        "contentHash": "j9r3QbAyYoTSih3c1W9amHUgrltz62W2UEu8irdCB+LrYLWW87S1q295mbDQWZKy+S376WTpu/+gCDFdyu/ziQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Hosting.Abstractions": "10.0.12",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.12",
+          "Trax.Core": "1.8.0",
+          "Trax.Effect": "1.57.4"
+        }
+      },
       "Trax.Mediator": {
         "type": "Direct",
         "requested": "[1.23.3, )",
