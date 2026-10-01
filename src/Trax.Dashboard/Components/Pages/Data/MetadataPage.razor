@@ -40,8 +40,8 @@
                               Frozen="true">
             <Template Context="m">
                 <RadzenCheckBox TValue="bool"
-                                Value="@(_selectedMetadata.Contains(m))"
-                                Change="@(args => { if ((bool)args!) _selectedMetadata.Add(m); else _selectedMetadata.Remove(m); PausePolling = _selectedMetadata.Count > 0; })" />
+                                Value="@(_selectedMetadata.Contains(m.Id))"
+                                Change="@(args => ToggleSelection(m.Id, (bool)args!))" />
             </Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="Metadata"
@@ -138,7 +138,19 @@
 
 @code {
     private TraxDataGrid<Metadata>? _grid;
-    private HashSet<Metadata> _selectedMetadata = [];
+
+    // Keyed by id: the grid reads a fresh page of runs on every load, so a selection kept by
+    // reference would stop matching the rows it was made on.
+    private readonly HashSet<long> _selectedMetadata = [];
+
+    private void ToggleSelection(long id, bool selected)
+    {
+        if (selected)
+            _selectedMetadata.Add(id);
+        else
+            _selectedMetadata.Remove(id);
+        PausePolling = _selectedMetadata.Count > 0;
+    }
 
     private async Task CancelTrain(long metadataId, string trainName)
     {
@@ -167,16 +179,9 @@
 
     private Task CancelSelected() => RunBatchOperationAsync(async () =>
     {
-        var inProgressIds = _selectedMetadata
-            .Where(m => m.TrainState == TrainState.InProgress)
-            .Select(m => m.Id)
-            .ToList();
-
-        if (inProgressIds.Count == 0)
-        {
-            BatchError = "No in-progress executions selected. Only in-progress executions can be cancelled.";
-            return;
-        }
+        // The state each run had when it was ticked is not checked here: the cancel tests the
+        // state the run has now.
+        var inProgressIds = _selectedMetadata.ToList();
 
         var count = await CancellationHelper.CancelTrainsAsync(
             DataContextFactory, ServiceProvider, inProgressIds, DisposalToken);

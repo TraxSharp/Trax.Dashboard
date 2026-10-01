@@ -38,8 +38,8 @@
                               Frozen="true">
             <Template Context="q">
                 <RadzenCheckBox TValue="bool"
-                                Value="@(_selectedEntries.Contains(q))"
-                                Change="@(args => { if ((bool)args!) _selectedEntries.Add(q); else _selectedEntries.Remove(q); PausePolling = _selectedEntries.Count > 0; })" />
+                                Value="@(_selectedEntries.Contains(q.Id))"
+                                Change="@(args => ToggleSelection(q.Id, (bool)args!))" />
             </Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="WorkQueue"
@@ -131,7 +131,19 @@
 
 @code {
     private TraxDataGrid<WorkQueue>? _grid;
-    private HashSet<WorkQueue> _selectedEntries = [];
+
+    // Keyed by id: the grid reads a fresh page of entries on every load, so a selection kept by
+    // reference would stop matching the rows it was made on.
+    private readonly HashSet<long> _selectedEntries = [];
+
+    private void ToggleSelection(long id, bool selected)
+    {
+        if (selected)
+            _selectedEntries.Add(id);
+        else
+            _selectedEntries.Remove(id);
+        PausePolling = _selectedEntries.Count > 0;
+    }
 
     private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
@@ -141,16 +153,7 @@
 
     private Task CancelSelected() => RunBatchOperationAsync(async () =>
     {
-        var queuedIds = _selectedEntries
-            .Where(e => e.Status == WorkQueueStatus.Queued)
-            .Select(e => e.Id)
-            .ToList();
-
-        if (queuedIds.Count == 0)
-        {
-            BatchError = "No queued entries selected. Only queued entries can be cancelled.";
-            return;
-        }
+        var queuedIds = _selectedEntries.ToList();
 
         using var context = await DataContextFactory.CreateDbContextAsync(DisposalToken);
         var count = await context.WorkQueues

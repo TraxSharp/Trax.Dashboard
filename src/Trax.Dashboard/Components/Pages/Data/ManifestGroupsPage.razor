@@ -90,8 +90,8 @@
                               Frozen="true">
             <Template Context="g">
                 <RadzenCheckBox TValue="bool"
-                                Value="@(_selectedGroups.Contains(g))"
-                                Change="@(args => { if ((bool)args!) _selectedGroups.Add(g); else _selectedGroups.Remove(g); PausePolling = _selectedGroups.Count > 0; })" />
+                                Value="@(_selectedGroups.Contains(g.Id))"
+                                Change="@(args => ToggleSelection(g.Id, (bool)args!))" />
             </Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="GroupSummary"
@@ -159,7 +159,9 @@
 
 @code {
     private List<GroupSummary> _items = [];
-    private HashSet<GroupSummary> _selectedGroups = [];
+    // Keyed by id: a refresh replaces every summary object, so a selection kept by reference
+    // would stop matching the rows it was made on.
+    private readonly HashSet<long> _selectedGroups = [];
     private DagLayout? _dagLayout;
     private bool _operating;
 
@@ -218,6 +220,15 @@
         _dagLayout = DagLayoutEngine.ComputeLayout(dagNodes, dagEdges);
     }
 
+    private void ToggleSelection(long id, bool selected)
+    {
+        if (selected)
+            _selectedGroups.Add(id);
+        else
+            _selectedGroups.Remove(id);
+        PausePolling = _selectedGroups.Count > 0;
+    }
+
     private async Task SetAllGroupsEnabled(bool enabled)
     {
         _operating = true;
@@ -269,7 +280,7 @@
 
     private Task SetSelectedEnabled(bool enabled) => RunBatchOperationAsync(async () =>
     {
-        var ids = _selectedGroups.Select(g => g.Id).ToList();
+        var ids = _selectedGroups.ToList();
 
         using var context = await DataContextFactory.CreateDbContextAsync(DisposalToken);
         var count = await context.ManifestGroups
@@ -290,9 +301,9 @@
     private Task TriggerSelected() => RunBatchOperationAsync(async () =>
     {
         var totalQueued = 0;
-        foreach (var group in _selectedGroups)
+        foreach (var groupId in _selectedGroups)
         {
-            totalQueued += await Scheduler.TriggerGroupAsync(group.Id);
+            totalQueued += await Scheduler.TriggerGroupAsync(groupId);
         }
 
         NotificationService.Notify(
@@ -305,9 +316,9 @@
     private Task CancelSelectedRunning() => RunBatchOperationAsync(async () =>
     {
         var totalCancelled = 0;
-        foreach (var group in _selectedGroups)
+        foreach (var groupId in _selectedGroups)
         {
-            totalCancelled += await Scheduler.CancelGroupAsync(group.Id);
+            totalCancelled += await Scheduler.CancelGroupAsync(groupId);
         }
 
         NotificationService.Notify(
