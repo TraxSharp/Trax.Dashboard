@@ -275,6 +275,12 @@ namespace Trax.Dashboard.Components.Shared
         public Microsoft.AspNetCore.Components.EventCallback<long> OnNodeClick { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
     }
+    public sealed class DashboardAuthorizationMonitor : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
+    {
+        public DashboardAuthorizationMonitor() { }
+        public void Dispose() { }
+        protected override void OnInitialized() { }
+    }
     public class ExceptionViewer : Microsoft.AspNetCore.Components.ComponentBase
     {
         public ExceptionViewer() { }
