@@ -14,6 +14,10 @@
         {
             <text>Dead Letter #@_deadLetter.Id</text>
         }
+        else if (!IsLoading && LoadError is not null)
+        {
+            <text>Could Not Load</text>
+        }
         else if (!IsLoading)
         {
             <text>Dead Letter Not Found</text>
@@ -53,6 +57,13 @@
 
 @if (_deadLetter is null)
 {
+    @if (LoadError is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" Variant="Variant.Flat">
+            Could not load dead letter @DeadLetterId: @LoadError. The page keeps retrying.
+        </RadzenAlert>
+        return;
+    }
     <RadzenText TextStyle="TextStyle.Body1">No dead letter found with ID @DeadLetterId.</RadzenText>
     return;
 }
@@ -162,11 +173,11 @@
                 </RadzenStack>
             </RadzenColumn>
         </RadzenRow>
-        @if (!string.IsNullOrWhiteSpace(manifest.Properties))
+        @if (!string.IsNullOrWhiteSpace(_maskedManifestProperties))
         {
             <RadzenStack Gap="0" class="rz-mt-3">
                 <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-disabled-color); margin: 0;">Properties</RadzenText>
-                <pre style="font-size: 0.75rem; max-height: 300px; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-all;">@FormatJson(manifest.Properties)</pre>
+                <pre style="font-size: 0.75rem; max-height: 300px; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-all;">@FormatJson(_maskedManifestProperties)</pre>
             </RadzenStack>
         }
     </RadzenCard>

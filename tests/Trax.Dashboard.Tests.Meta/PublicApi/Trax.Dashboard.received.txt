@@ -62,6 +62,7 @@ namespace Trax.Dashboard.Components.Layout
         public DashboardLayout() { }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
         protected override System.Threading.Tasks.Task OnAfterRenderAsync(bool firstRender) { }
+        protected override void OnParametersSet() { }
     }
 }
 namespace Trax.Dashboard.Components.Layout.Footer

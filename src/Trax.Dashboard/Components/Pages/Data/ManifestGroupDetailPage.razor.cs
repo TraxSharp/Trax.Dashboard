@@ -57,28 +57,64 @@ public partial class ManifestGroupDetailPage
     private string? _triggerError;
     private bool _cancellingAll;
 
-    // ── Summary counts (efficient DB aggregates) ──
-    private int _manifestCount;
-    private int _completedCount;
-    private int _failedCount;
-    private int _inProgressCount;
+    // ── Summary counts, from IOperationsService.GetManifestGroupExecutionStatsAsync ──
+    private long _manifestCount;
+    private long _completedCount;
+    private long _failedCount;
+    private long _inProgressCount;
 
     // ── Grid references for server-side reload ──
     private TraxDataGrid<Manifest>? _manifestsGrid;
     private TraxDataGrid<Metadata>? _executionsGrid;
 
-    // ── Settings dirty tracking ──
-    private int? _savedMaxActiveJobs;
-    private int _savedPriority;
-    private bool _savedIsEnabled;
+    // ── Settings form ──
+    // The form edits a copy, never _group, so a poll can refresh _group without touching unsaved
+    // edits. _savedSettings is what the form was last loaded from or saved as; a save sends only
+    // the fields that differ from it.
+    private GroupSettings? _settings;
+    private GroupSettings? _savedSettings;
 
     private bool IsSettingsDirty =>
-        _group is not null
-        && (
-            _group.MaxActiveJobs != _savedMaxActiveJobs
-            || _group.Priority != _savedPriority
-            || _group.IsEnabled != _savedIsEnabled
-        );
+        _settings is not null && _savedSettings is not null && _settings != _savedSettings;
+
+    /// <summary>
+    /// The editable settings of one group. A record so that "dirty" is value inequality with the
+    /// snapshot, and the group id is part of it so edits never carry over to another group.
+    /// </summary>
+    private sealed record GroupSettings
+    {
+        public required long GroupId { get; init; }
+        public int? MaxActiveJobs { get; set; }
+        public int Priority { get; set; }
+        public bool IsEnabled { get; set; }
+
+        public static GroupSettings From(ManifestGroup group) =>
+            new()
+            {
+                GroupId = group.Id,
+                MaxActiveJobs = group.MaxActiveJobs,
+                Priority = group.Priority,
+                IsEnabled = group.IsEnabled,
+            };
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Drops the previous group, its counts and any unsaved edits, so nothing from it is shown
+    /// or acted on under the new route.
+    /// </remarks>
+    private protected override void OnRouteKeyChanged()
+    {
+        _group = null;
+        _settings = null;
+        _savedSettings = null;
+        _dagLayout = null;
+        _triggerError = null;
+        _manifestCount = 0;
+        _completedCount = 0;
+        _failedCount = 0;
+        _inProgressCount = 0;
+    }
 
     /// <summary>
     /// Loads the group, its manifest count and completed, failed and in-progress run counts, and
@@ -90,56 +126,38 @@ public partial class ManifestGroupDetailPage
     {
         using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
 
-        var freshGroup = await context.ManifestGroups.FirstOrDefaultAsync(
-            g => g.Id == ManifestGroupId,
-            cancellationToken
-        );
+        var groupId = ManifestGroupId;
+        var freshGroup = await context
+            .ManifestGroups.AsNoTracking()
+            .FirstOrDefaultAsync(g => g.Id == groupId, cancellationToken);
 
         if (freshGroup is null)
         {
-            _group = null;
-            _manifestCount = 0;
-            _completedCount = 0;
-            _failedCount = 0;
-            _inProgressCount = 0;
-            _dagLayout = null;
+            OnRouteKeyChanged();
             return;
         }
 
-        // Don't overwrite the user's unsaved edits during poll ticks
-        if (!IsSettingsDirty)
+        _group = freshGroup;
+
+        // The form keeps unsaved edits across polls; anything else (a clean form, or a form
+        // left over from another group) takes the values just loaded.
+        if (!IsSettingsDirty || _savedSettings?.GroupId != groupId)
         {
-            _group = freshGroup;
-            SnapshotSettings();
+            _savedSettings = GroupSettings.From(freshGroup);
+            _settings = _savedSettings with { };
         }
 
-        // Efficient COUNTs for summary cards
-        _manifestCount = await context
-            .Manifests.AsNoTracking()
-            .CountAsync(m => m.ManifestGroupId == ManifestGroupId, cancellationToken);
-
-        // Subquery for scoping execution counts to this group's manifests.
-        // No AsNoTracking — this is composed into outer queries, never materialized.
-        var manifestIdsSubquery = context
-            .Manifests.Where(m => m.ManifestGroupId == ManifestGroupId)
-            .Select(m => m.Id);
-
-        var executionsBase = context
-            .Metadatas.AsNoTracking()
-            .Where(m => m.ManifestId.HasValue && manifestIdsSubquery.Contains(m.ManifestId.Value));
-
-        _completedCount = await executionsBase.CountAsync(
-            m => m.TrainState == TrainState.Completed,
-            cancellationToken
-        );
-        _failedCount = await executionsBase.CountAsync(
-            m => m.TrainState == TrainState.Failed,
-            cancellationToken
-        );
-        _inProgressCount = await executionsBase.CountAsync(
-            m => m.TrainState == TrainState.InProgress,
-            cancellationToken
-        );
+        // The same counts the API's group stats return, from the same service call.
+        var stats = (
+            await OperationsService.GetManifestGroupExecutionStatsAsync(
+                [groupId],
+                cancellationToken
+            )
+        ).Single();
+        _manifestCount = stats.ManifestCount;
+        _completedCount = stats.Completed;
+        _failedCount = stats.Failed;
+        _inProgressCount = stats.InProgress;
 
         // Build 1-hop neighborhood dependency graph
         await LoadDependencyGraph(context, cancellationToken);
@@ -264,36 +282,34 @@ public partial class ManifestGroupDetailPage
 
     // ── Settings ──
 
-    private void SnapshotSettings()
-    {
-        if (_group is null)
-            return;
-
-        _savedMaxActiveJobs = _group.MaxActiveJobs;
-        _savedPriority = _group.Priority;
-        _savedIsEnabled = _group.IsEnabled;
-    }
-
     private async Task SaveSettings()
     {
-        if (_group is null)
+        if (
+            _settings is not { } edited
+            || _savedSettings is not { } saved
+            || edited.GroupId != ManifestGroupId
+        )
             return;
+
+        // What this save sends, frozen now: the operator may keep editing while it runs.
+        var sent = edited with
+        { };
 
         try
         {
-            // Translate the dirty in-memory edits into a patch input for the shared
-            // service. MaxActiveJobs needs the explicit Clear flag because int? can't
-            // distinguish "unset" from "set to null" in the patch record.
-            var maxActiveJobsChanged = _group.MaxActiveJobs != _savedMaxActiveJobs;
+            // Translate the edits into a patch input for the shared service. MaxActiveJobs needs
+            // the explicit Clear flag because int? can't distinguish "unset" from "set to null"
+            // in the patch record.
+            var maxActiveJobsChanged = sent.MaxActiveJobs != saved.MaxActiveJobs;
             var input = new UpdateManifestGroupInput(
-                MaxActiveJobs: maxActiveJobsChanged ? _group.MaxActiveJobs : null,
-                ClearMaxActiveJobs: maxActiveJobsChanged && _group.MaxActiveJobs is null,
-                Priority: _group.Priority != _savedPriority ? _group.Priority : null,
-                IsEnabled: _group.IsEnabled != _savedIsEnabled ? _group.IsEnabled : null
+                MaxActiveJobs: maxActiveJobsChanged ? sent.MaxActiveJobs : null,
+                ClearMaxActiveJobs: maxActiveJobsChanged && sent.MaxActiveJobs is null,
+                Priority: sent.Priority != saved.Priority ? sent.Priority : null,
+                IsEnabled: sent.IsEnabled != saved.IsEnabled ? sent.IsEnabled : null
             );
 
             var result = await OperationsService.UpdateManifestGroupAsync(
-                _group.Id,
+                sent.GroupId,
                 input,
                 DisposalToken
             );
@@ -312,7 +328,11 @@ public partial class ManifestGroupDetailPage
                 return;
             }
 
-            // Reload to pick up the bumped UpdatedAt and confirm persistence.
+            // The saved values are now the baseline: later saves send only later edits. When
+            // nothing was edited during the save the form is clean, and the reload replaces it
+            // with what the database holds, including changes made by anyone else.
+            if (_savedSettings?.GroupId == sent.GroupId)
+                _savedSettings = sent;
             await LoadDataAsync(DisposalToken);
 
             NotificationService.Notify(
@@ -341,12 +361,10 @@ public partial class ManifestGroupDetailPage
 
     private void ResetSettings()
     {
-        if (_group is null)
+        if (_savedSettings is null)
             return;
 
-        _group.MaxActiveJobs = _savedMaxActiveJobs;
-        _group.Priority = _savedPriority;
-        _group.IsEnabled = _savedIsEnabled;
+        _settings = _savedSettings with { };
     }
 
     private async Task TriggerGroup()
@@ -359,12 +377,12 @@ public partial class ManifestGroupDetailPage
 
         try
         {
-            var count = await TraxScheduler.TriggerGroupAsync(_group.Id);
+            var count = await TraxScheduler.TriggerGroupAsync(ManifestGroupId);
 
             NotificationService.Notify(
                 NotificationSeverity.Success,
                 "Group Queued",
-                $"{count} manifest(s) in \"{_group.Name}\" queued for execution.",
+                $"{count} manifest(s) in \"{_group?.Name}\" queued for execution.",
                 duration: 4000
             );
         }

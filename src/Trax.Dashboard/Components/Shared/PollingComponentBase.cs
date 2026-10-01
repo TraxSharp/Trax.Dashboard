@@ -21,8 +21,10 @@ namespace Trax.Dashboard.Components.Shared;
 /// <see cref="NavigationManager.RegisterLocationChangingHandler"/> — the navigation is
 /// prevented and <see cref="RefreshNowAsync"/> is called instead.
 ///
-/// A load that throws during a background tick is reported through
-/// <see cref="IDashboardSettingsService.NotifyPollFailed"/> and retried on the next tick.
+/// A load that throws, whether the first load, a route-change reload or a background tick, is
+/// reported through <see cref="IDashboardSettingsService.NotifyPollFailed"/>, recorded in
+/// <see cref="LoadError"/> and retried on the next tick. It never leaves a lifecycle method,
+/// where Blazor Server would treat it as fatal and end the operator's circuit.
 /// Infrastructure for the dashboard's own pages; it is public only because those pages derive
 /// from it, and is not intended for use outside this package.
 /// </summary>
@@ -49,6 +51,13 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     /// ticks never set it.
     /// </summary>
     private protected bool IsLoading { get; set; } = true;
+
+    /// <summary>
+    /// The message of the most recent load that failed, or <see langword="null"/> once a load
+    /// succeeds. A page whose data is still empty after a failed load renders this as "could not
+    /// load" rather than "not found", because nothing is known about whether the row exists.
+    /// </summary>
+    private protected string? LoadError { get; private set; }
 
     /// <summary>
     /// When true, the polling loop skips data refreshes until the value is set back to false.
@@ -126,6 +135,13 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     private protected virtual object? GetRouteKey() => null;
 
     /// <summary>
+    /// Called when <see cref="GetRouteKey"/> changes, before the reload for the new route. Override
+    /// to drop state that belongs to the previous route (the loaded row, unsaved edits), so a
+    /// reload that fails does not leave the previous entity on screen under the new URL.
+    /// </summary>
+    private protected virtual void OnRouteKeyChanged() { }
+
+    /// <summary>
     /// Registers the same-URL navigation handler, initializes <see cref="DashboardSettings"/>,
     /// runs the first <see cref="LoadDataAsync"/> and starts the poll loop. A derived page that
     /// overrides this must call the base implementation.
@@ -146,8 +162,11 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
         if (token.IsCancellationRequested)
             return;
 
-        await LoadDataAsync(token);
-        DashboardSettings.NotifyPolled();
+        await LoadOnceAsync(token);
+
+        if (token.IsCancellationRequested)
+            return;
+
         IsLoading = false;
 
         _lastRouteKey = GetRouteKey();
@@ -165,7 +184,10 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
         var key = GetRouteKey();
 
         if (_lastRouteKey is not null && !Equals(key, _lastRouteKey))
+        {
+            OnRouteKeyChanged();
             await RefreshNowAsync(showLoading: true);
+        }
 
         _lastRouteKey = key;
     }
@@ -212,11 +234,38 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
         if (token.IsCancellationRequested)
             return;
 
-        await LoadDataAsync(token);
-        DashboardSettings.NotifyPolled();
+        await LoadOnceAsync(token);
+
+        if (token.IsCancellationRequested)
+            return;
+
         IsLoading = false;
 
         _ = PollAsync(token);
+    }
+
+    /// <summary>
+    /// Runs one load outside the poll loop, recording a failure the way a failed tick is recorded
+    /// instead of letting it out of the calling lifecycle method or event handler. A load this
+    /// component cancelled (superseded or disposed) ends quietly.
+    /// </summary>
+    private async Task LoadOnceAsync(CancellationToken token)
+    {
+        try
+        {
+            await LoadDataAsync(token);
+            LoadError = null;
+            DashboardSettings.NotifyPolled();
+        }
+        catch (Exception) when (token.IsCancellationRequested)
+        {
+            // Superseded by a newer load or disposed: the newer load owns the outcome.
+        }
+        catch (Exception ex)
+        {
+            LoadError = ex.Message;
+            DashboardSettings.NotifyPollFailed(ex.Message);
+        }
     }
 
     private async Task PollAsync(CancellationToken ct)
@@ -235,6 +284,7 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
                     await InvokeAsync(async () =>
                     {
                         await LoadDataAsync(ct);
+                        LoadError = null;
                         DashboardSettings.NotifyPolled();
                         StateHasChanged();
                     });
@@ -243,6 +293,7 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
                 {
                     // Keep polling: the next tick may succeed. Until one does, the header says
                     // the rows on screen are from the last refresh that worked.
+                    LoadError = ex.Message;
                     DashboardSettings.NotifyPollFailed(ex.Message);
                 }
             }

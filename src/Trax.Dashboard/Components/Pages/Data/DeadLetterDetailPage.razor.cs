@@ -8,6 +8,7 @@ using Trax.Effect.Data.Services.IDataContextFactory;
 using Trax.Effect.Enums;
 using Trax.Effect.Models.DeadLetter;
 using Trax.Effect.Models.Metadata;
+using Trax.Mediator.Services.TrainDiscovery;
 using Trax.Scheduler.Services.TraxScheduler;
 using static Trax.Dashboard.Utilities.DashboardFormatters;
 
@@ -33,11 +34,18 @@ public partial class DeadLetterDetailPage
     [Inject]
     private NotificationService NotificationService { get; set; } = default!;
 
+    [Inject]
+    private ITrainDiscoveryService TrainDiscovery { get; set; } = default!;
+
     /// <summary>The dead letter's database id, from the route.</summary>
     [Parameter]
     public long DeadLetterId { get; set; }
 
     private DeadLetter? _deadLetter;
+
+    // The manifest's properties with their [TraxSensitive] members masked: the stored copy keeps
+    // them in clear because every run of the manifest reads it.
+    private string? _maskedManifestProperties;
     private int _failedRunCount;
     private TraxDataGrid<Metadata>? _failedRunsGrid;
 
@@ -69,6 +77,15 @@ public partial class DeadLetterDetailPage
     /// <remarks>Returns <see cref="DeadLetterId"/>.</remarks>
     private protected override object? GetRouteKey() => DeadLetterId;
 
+    /// <inheritdoc/>
+    /// <remarks>Drops the previous dead letter, so a failed reload does not show it under the new route.</remarks>
+    private protected override void OnRouteKeyChanged()
+    {
+        _deadLetter = null;
+        _maskedManifestProperties = null;
+        _latestFailedRun = null;
+    }
+
     /// <summary>
     /// Loads the dead letter with its manifest, the count and most recent of the manifest's failed
     /// runs, and reloads the failed-runs grid, which pages its rows from the database. Leaves the
@@ -83,6 +100,12 @@ public partial class DeadLetterDetailPage
             .DeadLetters.Include(d => d.Manifest)
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == DeadLetterId, cancellationToken);
+
+        _maskedManifestProperties = TransportInputRedaction.Redact(
+            TrainDiscovery,
+            _deadLetter?.Manifest?.Properties,
+            _deadLetter?.Manifest?.PropertyTypeName
+        );
 
         if (_deadLetter is not null)
         {

@@ -75,6 +75,14 @@ public partial class MetadataDetailPage
     /// <remarks>Returns <see cref="MetadataId"/>.</remarks>
     private protected override object? GetRouteKey() => MetadataId;
 
+    /// <inheritdoc/>
+    /// <remarks>Drops the previous run, so a failed reload does not show it under the new route.</remarks>
+    private protected override void OnRouteKeyChanged()
+    {
+        _metadata = null;
+        _rerunError = null;
+    }
+
     /// <summary>
     /// Loads the run and the number of its log entries, and reloads the logs grid, which pages its
     /// rows from the database. Leaves the page empty when no run has the id.
@@ -137,10 +145,21 @@ public partial class MetadataDetailPage
 
     private async Task RequeueTrain()
     {
-        if (_metadata is null || string.IsNullOrWhiteSpace(_metadata.Input))
+        if (_metadata is null)
             return;
 
         _rerunError = null;
+
+        // Re-queueing reads the saved input back as the train's input. Nothing saved, a
+        // placeholder saved in its place, or masked [TraxSensitive] members would all read back
+        // as defaults, and the train would run with values it never had.
+        var refusal = RequeueInputCheck.RefusalFor(MetadataId, _metadata.Input);
+        if (refusal is not null || _metadata.Input is not { } savedInput)
+        {
+            _rerunError = refusal;
+            return;
+        }
+
         _rerunning = true;
 
         try
@@ -158,7 +177,7 @@ public partial class MetadataDetailPage
 
             // Parse the saved input to check it still fits the train before queueing it again.
             var deserializedInput = JsonSerializer.Deserialize(
-                _metadata.Input,
+                savedInput,
                 registration.InputType,
                 TraxJsonSerializationOptions.ManifestProperties
             );
