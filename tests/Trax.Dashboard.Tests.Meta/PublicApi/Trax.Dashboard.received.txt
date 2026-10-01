@@ -383,7 +383,6 @@ namespace Trax.Dashboard.Services.DashboardSettings
 {
     public interface IDashboardSettingsService
     {
-        System.Collections.Generic.IReadOnlyList<string> AdminTrainNames { get; }
         bool HideAdminTrains { get; }
         string? LastPollError { get; }
         System.DateTime LastPollTime { get; }
