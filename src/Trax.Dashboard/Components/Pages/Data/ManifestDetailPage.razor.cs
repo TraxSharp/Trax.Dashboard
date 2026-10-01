@@ -49,7 +49,8 @@ public partial class ManifestDetailPage
     private protected override void OnRouteKeyChanged() => _manifest = null;
 
     private Manifest? _manifest;
-    private TraxDataGrid<Metadata>? _runsGrid;
+    private TraxDataGrid<RunRow>? _runsGrid;
+    private readonly GridCount _runsCount = new();
     private long _totalRuns;
     private long _completedRuns;
     private long _failedRuns;
@@ -93,7 +94,8 @@ public partial class ManifestDetailPage
         }
     }
 
-    private Task<ServerDataResult<Metadata>> LoadRunsPageAsync(
+    // The row without the run's input, output and stack trace, which the grid does not show.
+    private Task<ServerDataResult<RunRow>> LoadRunsPageAsync(
         LoadDataArgs args,
         CancellationToken ct
     ) =>
@@ -103,7 +105,10 @@ public partial class ManifestDetailPage
                 db.Metadatas.AsNoTracking()
                     .Where(m => m.ManifestId == ManifestId)
                     .OrderByDescending(m => m.StartTime),
+            RunRow.Projection,
             args,
+            _runsCount,
+            ManifestId,
             ct
         );
 

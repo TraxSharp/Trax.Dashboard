@@ -49,6 +49,9 @@ public partial class WorkQueueDetailPage
     // clear because the run reads it.
     private string? _maskedInput;
 
+    // The input is re-indented once per change, not on every render.
+    private readonly JsonDisplayCache _json = new();
+
     /// <inheritdoc/>
     /// <remarks>Returns <see cref="WorkQueueId"/>.</remarks>
     private protected override object? GetRouteKey() => WorkQueueId;

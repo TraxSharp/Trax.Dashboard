@@ -47,9 +47,14 @@ public partial class DeadLetterDetailPage
     // them in clear because every run of the manifest reads it.
     private string? _maskedManifestProperties;
     private int _failedRunCount;
-    private TraxDataGrid<Metadata>? _failedRunsGrid;
+    private TraxDataGrid<RunRow>? _failedRunsGrid;
+    private readonly GridCount _failedRunsCount = new();
 
-    private Task<ServerDataResult<Metadata>> LoadFailedRunsPageAsync(
+    // The JSON shown is re-indented once per change, not on every render.
+    private readonly JsonDisplayCache _json = new();
+
+    // The row without the run's input, output and stack trace, which the grid does not show.
+    private Task<ServerDataResult<RunRow>> LoadFailedRunsPageAsync(
         LoadDataArgs args,
         CancellationToken ct
     ) =>
@@ -61,7 +66,10 @@ public partial class DeadLetterDetailPage
                         m.ManifestId == _deadLetter!.ManifestId && m.TrainState == TrainState.Failed
                     )
                     .OrderByDescending(m => m.StartTime),
+            RunRow.Projection,
             args,
+            _failedRunsCount,
+            DeadLetterId,
             ct
         );
 
@@ -118,9 +126,19 @@ public partial class DeadLetterDetailPage
             // The grid pages the failed runs from the database; the page reads only the count
             // and the most recent one.
             _failedRunCount = await failedRuns.CountAsync(cancellationToken);
-            _latestFailedRun = await failedRuns
+
+            // The most recent failed run is shown whole, input and stack trace included. A failed
+            // run does not change, so it is read again only when a newer one takes its place.
+            var latestId = await failedRuns
                 .OrderByDescending(m => m.StartTime)
+                .Select(m => (long?)m.Id)
                 .FirstOrDefaultAsync(cancellationToken);
+            if (latestId != _latestFailedRun?.Id)
+                _latestFailedRun = latestId is null
+                    ? null
+                    : await context
+                        .Metadatas.AsNoTracking()
+                        .FirstOrDefaultAsync(m => m.Id == latestId, cancellationToken);
 
             if (_failedRunsGrid is not null)
                 await _failedRunsGrid.ReloadAsync();

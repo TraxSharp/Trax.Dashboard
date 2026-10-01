@@ -148,6 +148,7 @@
 
 @code {
     private TraxDataGrid<DeadLetter>? _grid;
+    private readonly GridCount _count = new();
 
     // Keyed by id: the grid reads a fresh page of dead letters on every load, so a selection kept
     // by reference would stop matching the rows it was made on.
@@ -183,6 +184,8 @@
             DataContextFactory,
             db => db.DeadLetters.AsNoTracking().OrderByDescending(d => d.Id),
             args,
+            _count,
+            scope: null,
             ct
         );
 

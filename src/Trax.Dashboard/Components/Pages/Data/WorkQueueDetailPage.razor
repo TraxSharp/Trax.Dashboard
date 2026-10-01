@@ -125,6 +125,6 @@
 {
     <RadzenCard class="rz-mb-4">
         <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2">Input</RadzenText>
-        <pre style="font-size: 0.75rem; max-height: 300px; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-all;">@FormatJson(_maskedInput)</pre>
+        <pre style="font-size: 0.75rem; max-height: 300px; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-all;">@_json.Format("input", _maskedInput)</pre>
     </RadzenCard>
 }

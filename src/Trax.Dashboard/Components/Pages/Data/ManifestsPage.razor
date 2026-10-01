@@ -44,10 +44,10 @@
 }
 
 <TraxDataGrid @ref="_grid"
-              TItem="Manifest"
+              TItem="ManifestRow"
               ServerLoadData="@LoadPageAsync">
     <Columns>
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Width="40px"
                               Sortable="false"
                               Filterable="false"
@@ -58,7 +58,7 @@
                                 Change="@(args => { if ((bool)args!) _selectedManifests[m.Id] = m; else _selectedManifests.Remove(m.Id); PausePolling = _selectedManifests.Count > 0; })" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Title=""
                               Width="50px"
                               Sortable="false"
@@ -72,55 +72,55 @@
                               Click="@(() => Navigation.NavigateTo($"trax/data/manifests/{m.Id}"))" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="Id"
                               Title="Id"
                               Width="80px"
                               SortOrder="SortOrder.Descending" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="Name"
                               Title="Name"
                               Width="250px">
             <Template Context="m">@ShortName(m.Name)</Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="ExternalId"
                               Title="External Id"
                               Width="200px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Manifest"
-                              Property="ManifestGroup.Name"
+        <RadzenDataGridColumn TItem="ManifestRow"
+                              Property="GroupName"
                               Title="Group"
                               Width="180px" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="IsEnabled"
                               Title="Enabled"
                               Width="100px" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="ScheduleType"
                               Title="Schedule Type"
                               Width="150px" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="CronExpression"
                               Title="Cron Expression"
                               Width="170px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="IntervalSeconds"
                               Title="Interval (s)"
                               Width="130px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="MaxRetries"
                               Title="Max Retries"
                               Width="140px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="TimeoutSeconds"
                               Title="Timeout (s)"
                               Width="130px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Manifest"
+        <RadzenDataGridColumn TItem="ManifestRow"
                               Property="LastSuccessfulRun"
                               Title="Last Successful Run"
                               Width="200px"
@@ -129,11 +129,12 @@
 </TraxDataGrid>
 
 @code {
-    private TraxDataGrid<Manifest>? _grid;
+    private TraxDataGrid<ManifestRow>? _grid;
+    private readonly GridCount _count = new();
 
     // Keyed by id: the grid reads a fresh page of manifests on every load, so a selection kept
     // by reference would stop matching the rows it was made on.
-    private Dictionary<long, Manifest> _selectedManifests = [];
+    private Dictionary<long, ManifestRow> _selectedManifests = [];
 
     private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
@@ -142,19 +143,15 @@
     }
 
     // One page at a time from the database, as the API's manifests query reads them.
-    private Task<ServerDataResult<Manifest>> LoadPageAsync(LoadDataArgs args, CancellationToken ct)
+    // The row without the manifest's properties and exclusions, which the grid does not show.
+    private Task<ServerDataResult<ManifestRow>> LoadPageAsync(LoadDataArgs args, CancellationToken ct)
         => DataGridQueryHelper.LoadPageAsync(
             DataContextFactory,
-            db =>
-            {
-                IQueryable<Manifest> query = db.Manifests.Include(m => m.ManifestGroup).AsNoTracking();
-
-                if (DashboardSettings.HideAdminTrains)
-                    query = query.ExcludeAdmin(AdminTrains.FullNames);
-
-                return query.OrderByDescending(m => m.Id);
-            },
+            db => GridQueries.Manifests(db, DashboardSettings.HideAdminTrains),
+            ManifestRow.Projection,
             args,
+            _count,
+            DashboardSettings.HideAdminTrains,
             ct
         );
 

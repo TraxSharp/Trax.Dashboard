@@ -30,10 +30,10 @@
 }
 
 <TraxDataGrid @ref="_grid"
-                    TItem="Metadata"
+                    TItem="RunRow"
                     ServerLoadData="@LoadPageAsync">
     <Columns>
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Width="40px"
                               Sortable="false"
                               Filterable="false"
@@ -44,7 +44,7 @@
                                 Change="@(args => ToggleSelection(m.Id, (bool)args!))" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Title=""
                               Width="80px"
                               Sortable="false"
@@ -69,67 +69,67 @@
                 </RadzenStack>
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="Id"
                               Title="Id"
                               Width="80px"
                               SortOrder="SortOrder.Descending" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="Name"
                               Title="Name"
                               Width="200px">
             <Template Context="m">@ShortName(m.Name)</Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="TrainState"
                               Title="State"
                               Width="120px" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="CurrentlyRunningJunction"
                               Title="Current Junction"
                               Width="150px">
             <Template Context="m">@(m.TrainState == TrainState.InProgress ? (m.CurrentlyRunningJunction ?? "—") : "—")</Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="ExternalId"
                               Title="External Id"
                               Width="200px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="StartTime"
                               Title="Start Time"
                               Width="180px"
                               FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="EndTime"
                               Title="End Time"
                               Width="180px"
                               FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="FailureJunction"
                               Title="Failure Junction"
                               Width="150px" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="FailureReason"
                               Title="Failure Reason"
                               Width="250px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="ParentId"
                               Title="Parent Id"
                               Width="140px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="ManifestId"
                               Title="Manifest Id"
                               Width="140px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="HostEnvironment"
                               Title="Host Env"
                               Width="120px"
                               Visible="false" />
-        <RadzenDataGridColumn TItem="Metadata"
+        <RadzenDataGridColumn TItem="RunRow"
                               Property="HostName"
                               Title="Host"
                               Width="150px"
@@ -138,7 +138,8 @@
 </TraxDataGrid>
 
 @code {
-    private TraxDataGrid<Metadata>? _grid;
+    private TraxDataGrid<RunRow>? _grid;
+    private readonly GridCount _count = new();
 
     // Keyed by id: the grid reads a fresh page of runs on every load, so a selection kept by
     // reference would stop matching the rows it was made on.
@@ -195,19 +196,15 @@
             await _grid.ReloadAsync();
     }
 
-    private Task<ServerDataResult<Metadata>> LoadPageAsync(LoadDataArgs args, CancellationToken ct)
+    // The row without the run's input, output and stack trace, which the grid does not show.
+    private Task<ServerDataResult<RunRow>> LoadPageAsync(LoadDataArgs args, CancellationToken ct)
         => DataGridQueryHelper.LoadPageAsync(
             DataContextFactory,
-            db =>
-            {
-                IQueryable<Metadata> query = db.Metadatas.AsNoTracking();
-
-                if (DashboardSettings.HideAdminTrains)
-                    query = query.ExcludeAdmin(AdminTrains.FullNames);
-
-                return query.OrderByDescending(m => m.Id);
-            },
+            db => GridQueries.Runs(db, DashboardSettings.HideAdminTrains),
+            RunRow.Projection,
             args,
+            _count,
+            DashboardSettings.HideAdminTrains,
             ct
         );
 }

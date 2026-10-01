@@ -71,3 +71,7 @@ that reads as a deferral is not.
 ```bash
 dotnet test
 ```
+
+`tests/Trax.Dashboard.Tests.Stress/` times the grids' page queries against Postgres at a million
+runs. It is `[Explicit]`, so a plain `dotnet test` skips it; run it with
+`TRAX_TEST_PG_PORT=<port> dotnet test --filter TestCategory=Stress` (port 5432 when unset).

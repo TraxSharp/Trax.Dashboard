@@ -1,4 +1,3 @@
-using System.Linq.Dynamic.Core;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,8 +63,10 @@ public partial class ManifestGroupDetailPage
     private long _inProgressCount;
 
     // ── Grid references for server-side reload ──
-    private TraxDataGrid<Manifest>? _manifestsGrid;
-    private TraxDataGrid<Metadata>? _executionsGrid;
+    private TraxDataGrid<ManifestRow>? _manifestsGrid;
+    private TraxDataGrid<RunRow>? _executionsGrid;
+    private readonly GridCount _manifestsCount = new();
+    private readonly GridCount _executionsCount = new();
 
     // ── Settings form ──
     // The form edits a copy, never _group, so a poll can refresh _group without touching unsaved
@@ -171,71 +172,38 @@ public partial class ManifestGroupDetailPage
 
     // ── Server-side grid callbacks ──
 
-    private async Task<ServerDataResult<Manifest>> LoadManifestPageAsync(
+    // Both grids read rows without the columns they do not show: a manifest's properties and
+    // exclusions, a run's input, output and stack trace.
+    private Task<ServerDataResult<ManifestRow>> LoadManifestPageAsync(
         LoadDataArgs args,
         CancellationToken cancellationToken
-    )
-    {
-        using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
+    ) =>
+        DataGridQueryHelper.LoadPageAsync(
+            DataContextFactory,
+            db =>
+                db.Manifests.AsNoTracking()
+                    .Where(m => m.ManifestGroupId == ManifestGroupId)
+                    .OrderByDescending(m => m.Id),
+            ManifestRow.Projection,
+            args,
+            _manifestsCount,
+            ManifestGroupId,
+            cancellationToken
+        );
 
-        IQueryable<Manifest> query = context
-            .Manifests.AsNoTracking()
-            .Where(m => m.ManifestGroupId == ManifestGroupId);
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
-        if (!string.IsNullOrEmpty(args.OrderBy))
-            query = query.OrderBy(args.OrderBy);
-        else
-            query = query.OrderByDescending(m => m.Id);
-
-        var count = await query.CountAsync(cancellationToken);
-
-        if (args.Skip.HasValue)
-            query = query.Skip(args.Skip.Value);
-        if (args.Top.HasValue)
-            query = query.Take(args.Top.Value);
-
-        var items = await query.ToListAsync(cancellationToken);
-        return new ServerDataResult<Manifest>(items, count);
-    }
-
-    private async Task<ServerDataResult<Metadata>> LoadExecutionPageAsync(
+    private Task<ServerDataResult<RunRow>> LoadExecutionPageAsync(
         LoadDataArgs args,
         CancellationToken cancellationToken
-    )
-    {
-        using var context = await DataContextFactory.CreateDbContextAsync(cancellationToken);
-
-        // Subquery — generates SQL subselect, not a materialized IN list.
-        // No AsNoTracking — this is composed into the outer query, never materialized.
-        var manifestIdsSubquery = context
-            .Manifests.Where(m => m.ManifestGroupId == ManifestGroupId)
-            .Select(m => m.Id);
-
-        IQueryable<Metadata> query = context
-            .Metadatas.AsNoTracking()
-            .Where(m => m.ManifestId.HasValue && manifestIdsSubquery.Contains(m.ManifestId.Value));
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
-        if (!string.IsNullOrEmpty(args.OrderBy))
-            query = query.OrderBy(args.OrderBy);
-        else
-            query = query.OrderByDescending(m => m.StartTime);
-
-        var count = await query.CountAsync(cancellationToken);
-
-        if (args.Skip.HasValue)
-            query = query.Skip(args.Skip.Value);
-        if (args.Top.HasValue)
-            query = query.Take(args.Top.Value);
-
-        var items = await query.ToListAsync(cancellationToken);
-        return new ServerDataResult<Metadata>(items, count);
-    }
+    ) =>
+        DataGridQueryHelper.LoadPageAsync(
+            DataContextFactory,
+            db => GridQueries.RunsOfGroup(db, ManifestGroupId),
+            RunRow.Projection,
+            args,
+            _executionsCount,
+            ManifestGroupId,
+            cancellationToken
+        );
 
     // ── Dependency graph ──
 

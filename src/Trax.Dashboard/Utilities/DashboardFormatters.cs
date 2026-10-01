@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Radzen;
+using Trax.Dashboard.Models;
 using Trax.Effect.Enums;
 using Trax.Effect.Models.Manifest;
 using Trax.Effect.Models.Metadata;
@@ -37,6 +38,15 @@ internal static class DashboardFormatters
 
         return FormatDuration((metadata.EndTime.Value - metadata.StartTime).TotalMilliseconds);
     }
+
+    /// <summary>
+    /// <see cref="FormatDuration(Metadata)"/> for a run as a grid shows it.
+    /// </summary>
+    /// <param name="run">The run.</param>
+    public static string FormatDuration(RunRow run) =>
+        run.EndTime is null
+            ? "—"
+            : FormatDuration((run.EndTime.Value - run.StartTime).TotalMilliseconds);
 
     /// <summary>
     /// Formats a duration as whole milliseconds under a second (<c>850ms</c>), seconds with one

@@ -170,10 +170,10 @@
 <RadzenCard class="rz-mb-4">
     <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2">Manifests</RadzenText>
     <TraxDataGrid @ref="_manifestsGrid"
-                        TItem="Manifest"
+                        TItem="ManifestRow"
                         ServerLoadData="@LoadManifestPageAsync">
         <Columns>
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Title=""
                                   Width="50px"
                                   Sortable="false"
@@ -187,30 +187,30 @@
                                   Click="@(() => Navigation.NavigateTo($"trax/data/manifests/{m.Id}"))" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Property="Id"
                                   Title="Id"
                                   Width="80px"
                                   SortOrder="SortOrder.Descending" />
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Property="Name"
                                   Title="Name"
                                   Width="250px">
                 <Template Context="m">@ShortName(m.Name)</Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Property="ExternalId"
                                   Title="External Id"
                                   Width="200px" />
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Property="IsEnabled"
                                   Title="Enabled"
                                   Width="100px" />
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Property="ScheduleType"
                                   Title="Schedule Type"
                                   Width="150px" />
-            <RadzenDataGridColumn TItem="Manifest"
+            <RadzenDataGridColumn TItem="ManifestRow"
                                   Property="LastSuccessfulRun"
                                   Title="Last Successful Run"
                                   Width="200px"
@@ -223,10 +223,10 @@
 <RadzenCard>
     <RadzenText TextStyle="TextStyle.H6" class="rz-mb-2">Executions</RadzenText>
     <TraxDataGrid @ref="_executionsGrid"
-                        TItem="Metadata"
+                        TItem="RunRow"
                         ServerLoadData="@LoadExecutionPageAsync">
         <Columns>
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Title=""
                                   Width="50px"
                                   Sortable="false"
@@ -240,12 +240,12 @@
                                   Click="@(() => Navigation.NavigateTo($"trax/data/metadata/{m.Id}"))" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="Id"
                                   Title="Id"
                                   Width="80px"
                                   SortOrder="SortOrder.Descending" />
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="TrainState"
                                   Title="State"
                                   Width="120px">
@@ -254,34 +254,34 @@
                                  Text="@m.TrainState.ToString()" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="Name"
                                   Title="Train"
                                   Width="200px">
                 <Template Context="m">@ShortName(m.Name)</Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="StartTime"
                                   Title="Start Time"
                                   Width="180px"
                                   FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="EndTime"
                                   Title="End Time"
                                   Width="180px"
                                   FormatString="{0:yyyy-MM-dd HH:mm:ss}" />
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Title="Duration"
                                   Width="120px"
                                   Sortable="false"
                                   Filterable="false">
                 <Template Context="m">@FormatDuration(m)</Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="FailureJunction"
                                   Title="Failure Junction"
                                   Width="150px" />
-            <RadzenDataGridColumn TItem="Metadata"
+            <RadzenDataGridColumn TItem="RunRow"
                                   Property="FailureReason"
                                   Title="Failure Reason"
                                   Width="250px" />

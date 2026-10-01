@@ -49,16 +49,24 @@ public partial class MetadataDetailPage
 
     private Metadata? _metadata;
     private int _logCount;
-    private TraxDataGrid<Log>? _logsGrid;
+    private TraxDataGrid<LogRow>? _logsGrid;
+    private readonly GridCount _logsCount = new();
 
-    private Task<ServerDataResult<Log>> LoadLogsPageAsync(
+    // The input and output are re-indented once per change, not on every render.
+    private readonly JsonDisplayCache _json = new();
+
+    // The row without the entry's stack trace, which the grid does not show.
+    private Task<ServerDataResult<LogRow>> LoadLogsPageAsync(
         LoadDataArgs args,
         CancellationToken ct
     ) =>
         DataGridQueryHelper.LoadPageAsync(
             DataContextFactory,
             db => db.Logs.AsNoTracking().Where(l => l.MetadataId == MetadataId).OrderBy(l => l.Id),
+            LogRow.Projection,
             args,
+            _logsCount,
+            MetadataId,
             ct
         );
 
