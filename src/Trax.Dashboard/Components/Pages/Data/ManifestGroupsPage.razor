@@ -240,35 +240,57 @@
         () => OperationsService.SetManifestGroupsEnabledAsync(_selectedGroups.ToList(), enabled, DisposalToken),
         () => _selectedGroups.Clear());
 
-    private Task TriggerSelected() => RunBatchOperationAsync(async () =>
+    // One call per group, as the scheduler offers no batch trigger or cancel yet. Each group is
+    // tried in turn, so one that fails does not stop the rest. A group's trigger skips a member
+    // that already has a queued entry and counts only the manifests it queued.
+    private Task TriggerSelected() => RunEachAsync("Groups Triggered", async () =>
     {
-        var totalQueued = 0;
-        foreach (var groupId in _selectedGroups)
+        var queued = 0;
+        var failures = new List<string>();
+        foreach (var groupId in _selectedGroups.ToList())
         {
-            totalQueued += await Scheduler.TriggerGroupAsync(groupId);
+            try
+            {
+                queued += await Scheduler.TriggerGroupAsync(groupId, DisposalToken);
+            }
+            catch (Exception ex) when (!DisposalToken.IsCancellationRequested)
+            {
+                failures.Add($"Group {GroupName(groupId)} was not triggered: {ex.Message}");
+            }
         }
 
-        NotificationService.Notify(
-            NotificationSeverity.Success,
-            "Groups Triggered",
-            $"{totalQueued} manifest(s) queued across {_selectedGroups.Count} group(s).",
-            duration: 4000);
+        var triggered = _selectedGroups.Count - failures.Count;
+        var message = $"{queued} manifest(s) queued across {triggered} group(s)";
+        if (failures.Count > 0)
+            message += $", {failures.Count} group(s) failed";
+        return new EachOutcome(message + ".", failures);
     }, () => _selectedGroups.Clear());
 
-    private Task CancelSelectedRunning() => RunBatchOperationAsync(async () =>
+    private Task CancelSelectedRunning() => RunEachAsync("Cancellation Requested", async () =>
     {
-        var totalCancelled = 0;
-        foreach (var groupId in _selectedGroups)
+        var flagged = 0;
+        var failures = new List<string>();
+        foreach (var groupId in _selectedGroups.ToList())
         {
-            totalCancelled += await Scheduler.CancelGroupAsync(groupId);
+            try
+            {
+                flagged += await Scheduler.CancelGroupAsync(groupId, DisposalToken);
+            }
+            catch (Exception ex) when (!DisposalToken.IsCancellationRequested)
+            {
+                failures.Add($"Group {GroupName(groupId)} was not cancelled: {ex.Message}");
+            }
         }
 
-        NotificationService.Notify(
-            NotificationSeverity.Success,
-            "Cancellation Requested",
-            $"Cancel signal sent for {totalCancelled} execution(s) across {_selectedGroups.Count} group(s).",
-            duration: 4000);
+        var cancelled = _selectedGroups.Count - failures.Count;
+        var message = $"Cancellation requested for {flagged} execution(s) across {cancelled} group(s)";
+        if (failures.Count > 0)
+            message += $", {failures.Count} group(s) failed";
+        return new EachOutcome(message + ".", failures);
     }, () => _selectedGroups.Clear());
+
+    private string GroupName(long groupId) =>
+        _items.FirstOrDefault(g => g.Id == groupId)?.Name ?? groupId.ToString();
 
     private void OnDagNodeClick(long groupId)
     {

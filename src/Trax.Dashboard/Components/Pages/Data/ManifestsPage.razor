@@ -158,20 +158,49 @@
             ct
         );
 
-    private Task TriggerSelected() => RunBatchOperationAsync(async () =>
+    // One trigger per manifest, as the scheduler offers no batch trigger yet. Each is tried in
+    // turn, so one that fails does not stop the rest. A manifest that already has a queued entry
+    // gets nothing more queued: the scheduler marks that entry as the triggered run instead, so
+    // it is reported apart from the manifests that were queued.
+    private Task TriggerSelected() => RunEachAsync("Batch Trigger", async () =>
     {
-        var count = 0;
-        foreach (var manifest in _selectedManifests.Values)
+        var selected = _selectedManifests.Values.ToList();
+        var ids = selected.Select(m => m.Id).ToList();
+
+        HashSet<long> hadEntry;
+        using (var context = await DataContextFactory.CreateDbContextAsync(DisposalToken))
+            hadEntry = (await context.WorkQueues
+                .AsNoTracking()
+                .Where(q => q.ManifestId != null && ids.Contains(q.ManifestId.Value) && q.Status == WorkQueueStatus.Queued)
+                .Select(q => q.ManifestId!.Value)
+                .ToListAsync(DisposalToken))
+                .ToHashSet();
+
+        var queued = 0;
+        var alreadyQueued = 0;
+        var failures = new List<string>();
+        foreach (var manifest in selected)
         {
-            await Scheduler.TriggerAsync(manifest.ExternalId);
-            count++;
+            try
+            {
+                await Scheduler.TriggerAsync(manifest.ExternalId, DisposalToken);
+                if (hadEntry.Contains(manifest.Id))
+                    alreadyQueued++;
+                else
+                    queued++;
+            }
+            catch (Exception ex) when (!DisposalToken.IsCancellationRequested)
+            {
+                failures.Add($"{ShortName(manifest.Name)} ({manifest.ExternalId}) was not triggered: {ex.Message}");
+            }
         }
 
-        NotificationService.Notify(
-            NotificationSeverity.Success,
-            "Batch Trigger",
-            $"{count} manifest(s) triggered.",
-            duration: 4000);
+        var message = $"{queued} queued";
+        if (alreadyQueued > 0)
+            message += $", {alreadyQueued} already queued (that entry now runs as the trigger)";
+        if (failures.Count > 0)
+            message += $", {failures.Count} failed";
+        return new EachOutcome(message + ".", failures);
     }, () => _selectedManifests.Clear());
 
     // Through the operations service, as the API's setManifestsEnabled is. Only manifests whose

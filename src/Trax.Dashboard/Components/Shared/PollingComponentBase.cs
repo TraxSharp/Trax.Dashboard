@@ -165,6 +165,60 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     }
 
     /// <summary>
+    /// Runs an action once per selected item, for the batch actions the scheduler offers only one
+    /// item at a time. <paramref name="operation"/> handles every item, carries on past an item
+    /// that fails, and returns what happened. The summary is reported as a notification (a
+    /// warning when any item failed) and the failures, each naming its item, as
+    /// <see cref="BatchError"/>. The selection is cleared either way, because the items that
+    /// succeeded must not be sent again; then polling resumes and the data reloads.
+    /// </summary>
+    /// <param name="summary">The notification's title, such as "Batch Trigger".</param>
+    /// <param name="operation">Handles every item and returns the outcome.</param>
+    /// <param name="clearSelection">Empties the page's selection.</param>
+    private protected async Task RunEachAsync(
+        string summary,
+        Func<Task<EachOutcome>> operation,
+        Action clearSelection
+    )
+    {
+        BatchError = null;
+        BatchOperating = true;
+
+        try
+        {
+            var outcome = await operation();
+            BatchNotifications.Notify(
+                outcome.Failures.Count > 0
+                    ? NotificationSeverity.Warning
+                    : NotificationSeverity.Success,
+                summary,
+                outcome.Message,
+                duration: 6000
+            );
+            if (outcome.Failures.Count > 0)
+                BatchError = string.Join(" ", outcome.Failures);
+
+            clearSelection();
+            PausePolling = false;
+            await LoadDataAsync(DisposalToken);
+        }
+        catch (Exception ex)
+        {
+            BatchError = ex.Message;
+        }
+        finally
+        {
+            BatchOperating = false;
+        }
+    }
+
+    /// <summary>
+    /// What <see cref="RunEachAsync"/> reports: a one-line count of what happened, and a line
+    /// for each item that failed.
+    /// </summary>
+    private protected sealed record EachOutcome(string Message, IReadOnlyList<string> Failures);
+
+    /// <summary>
     /// A CancellationToken that is cancelled when the component is disposed.
     /// Event handlers can pass this to async operations so they abort when the user navigates away.
     /// </summary>
