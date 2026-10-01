@@ -5,7 +5,6 @@
 @inject IDataContextProviderFactory DataContextFactory
 @inject NavigationManager Navigation
 @inject ITraxScheduler Scheduler
-@inject IServiceProvider ServiceProvider
 @inject NotificationService NotificationService
 @inject Trax.Scheduler.Services.Operations.IOperationsService OperationsService
 
@@ -20,14 +19,14 @@
                           Variant="Variant.Outlined"
                           Size="ButtonSize.Small"
                           Click="@(() => SetAllGroupsEnabled(true))"
-                          Disabled="@(_operating || _items.All(g => g.IsEnabled))" />
+                          Disabled="@(BatchOperating || _items.All(g => g.IsEnabled))" />
             <RadzenButton Text="Disable All"
                           Icon="pause"
                           ButtonStyle="ButtonStyle.Danger"
                           Variant="Variant.Outlined"
                           Size="ButtonSize.Small"
                           Click="@(() => SetAllGroupsEnabled(false))"
-                          Disabled="@(_operating || _items.All(g => !g.IsEnabled))" />
+                          Disabled="@(BatchOperating || _items.All(g => !g.IsEnabled))" />
         </RadzenStack>
     }
 </RadzenStack>
@@ -163,7 +162,6 @@
     // would stop matching the rows it was made on.
     private readonly HashSet<long> _selectedGroups = [];
     private DagLayout? _dagLayout;
-    private bool _operating;
 
     private protected override async Task LoadDataAsync(CancellationToken cancellationToken)
     {
@@ -229,74 +227,18 @@
         PausePolling = _selectedGroups.Count > 0;
     }
 
-    private async Task SetAllGroupsEnabled(bool enabled)
-    {
-        _operating = true;
+    // Through the operations service, as the API's setAllManifestGroupsEnabled is. A selection
+    // is left as it is: this acts on every group, not the selected ones.
+    private Task SetAllGroupsEnabled(bool enabled) => RunBatchOperationAsync(
+        enabled ? "All Groups Enabled" : "All Groups Disabled",
+        () => OperationsService.SetAllManifestGroupsEnabledAsync(enabled, DisposalToken));
 
-        try
-        {
-            using var context = await DataContextFactory.CreateDbContextAsync(DisposalToken);
-
-            await context.ManifestGroups
-                .Where(g => g.IsEnabled != enabled)
-                .ExecuteUpdateAsync(
-                    s => s
-                        .SetProperty(g => g.IsEnabled, enabled)
-                        .SetProperty(g => g.UpdatedAt, DateTime.UtcNow),
-                    DisposalToken
-                );
-
-            NotificationService.Notify(
-                new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Success,
-                    Summary = enabled ? "All Groups Enabled" : "All Groups Disabled",
-                    Detail = enabled
-                        ? "All manifest groups have been enabled."
-                        : "All manifest groups have been disabled. No new jobs will be queued.",
-                    Duration = 4000,
-                }
-            );
-
-            await RefreshNowAsync();
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(
-                new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Update Failed",
-                    Detail = ex.Message,
-                    Duration = 6000,
-                }
-            );
-        }
-        finally
-        {
-            _operating = false;
-        }
-    }
-
-    private Task SetSelectedEnabled(bool enabled) => RunBatchOperationAsync(async () =>
-    {
-        var ids = _selectedGroups.ToList();
-
-        using var context = await DataContextFactory.CreateDbContextAsync(DisposalToken);
-        var count = await context.ManifestGroups
-            .Where(g => ids.Contains(g.Id))
-            .ExecuteUpdateAsync(
-                s => s
-                    .SetProperty(g => g.IsEnabled, enabled)
-                    .SetProperty(g => g.UpdatedAt, DateTime.UtcNow),
-                DisposalToken);
-
-        NotificationService.Notify(
-            NotificationSeverity.Success,
-            enabled ? "Groups Enabled" : "Groups Disabled",
-            $"{count} group(s) {(enabled ? "enabled" : "disabled")}.",
-            duration: 4000);
-    }, () => _selectedGroups.Clear());
+    // Through the operations service, as the API's setManifestGroupsEnabled is. Only groups whose
+    // flag differs are written, and the count says how many that was.
+    private Task SetSelectedEnabled(bool enabled) => RunBatchOperationAsync(
+        enabled ? "Groups Enabled" : "Groups Disabled",
+        () => OperationsService.SetManifestGroupsEnabledAsync(_selectedGroups.ToList(), enabled, DisposalToken),
+        () => _selectedGroups.Clear());
 
     private Task TriggerSelected() => RunBatchOperationAsync(async () =>
     {

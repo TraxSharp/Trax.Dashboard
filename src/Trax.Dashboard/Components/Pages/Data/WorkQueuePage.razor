@@ -3,7 +3,7 @@
 @inherits PollingComponentBase
 @inject IDataContextProviderFactory DataContextFactory
 @inject NavigationManager Navigation
-@inject NotificationService NotificationService
+@inject Trax.Scheduler.Services.Operations.IOperationsService OperationsService
 
 <RadzenText TextStyle="TextStyle.H4" class="rz-mb-2">Work Queue</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-4" Style="color: var(--rz-text-secondary-color);">
@@ -151,23 +151,12 @@
             await _grid.ReloadAsync();
     }
 
-    private Task CancelSelected() => RunBatchOperationAsync(async () =>
-    {
-        var queuedIds = _selectedEntries.ToList();
-
-        using var context = await DataContextFactory.CreateDbContextAsync(DisposalToken);
-        var count = await context.WorkQueues
-            .Where(wq => queuedIds.Contains(wq.Id) && wq.Status == WorkQueueStatus.Queued)
-            .ExecuteUpdateAsync(
-                s => s.SetProperty(wq => wq.Status, WorkQueueStatus.Cancelled),
-                DisposalToken);
-
-        NotificationService.Notify(
-            NotificationSeverity.Success,
-            "Entries Cancelled",
-            $"{count} work queue entry(s) cancelled.",
-            duration: 4000);
-    }, () => _selectedEntries.Clear());
+    // Through the operations service, as the API's cancelWorkQueueEntries is. It cancels the
+    // selected entries that are still Queued and says how many that was.
+    private Task CancelSelected() => RunBatchOperationAsync(
+        "Entries Cancelled",
+        () => OperationsService.CancelWorkQueueEntriesAsync(_selectedEntries.ToList(), DisposalToken),
+        () => _selectedEntries.Clear());
 
     private Task<ServerDataResult<WorkQueue>> LoadPageAsync(LoadDataArgs args, CancellationToken ct)
         => DataGridQueryHelper.LoadPageAsync(

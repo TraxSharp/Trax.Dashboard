@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject ITraxScheduler Scheduler
 @inject NotificationService NotificationService
+@inject Trax.Scheduler.Services.Operations.IOperationsService OperationsService
 
 <RadzenText TextStyle="TextStyle.H4" class="rz-mb-2">Manifests</RadzenText>
 <RadzenText TextStyle="TextStyle.Body2" class="rz-mb-4" Style="color: var(--rz-text-secondary-color);">
@@ -173,21 +174,10 @@
             duration: 4000);
     }, () => _selectedManifests.Clear());
 
-    private Task SetSelectedEnabled(bool enabled) => RunBatchOperationAsync(async () =>
-    {
-        var ids = _selectedManifests.Keys.ToList();
-
-        using var context = await DataContextFactory.CreateDbContextAsync(DisposalToken);
-        var count = await context.Manifests
-            .Where(m => ids.Contains(m.Id))
-            .ExecuteUpdateAsync(
-                s => s.SetProperty(m => m.IsEnabled, enabled),
-                DisposalToken);
-
-        NotificationService.Notify(
-            NotificationSeverity.Success,
-            enabled ? "Manifests Enabled" : "Manifests Disabled",
-            $"{count} manifest(s) {(enabled ? "enabled" : "disabled")}.",
-            duration: 4000);
-    }, () => _selectedManifests.Clear());
+    // Through the operations service, as the API's setManifestsEnabled is. Only manifests whose
+    // flag differs are written, and the count says how many that was.
+    private Task SetSelectedEnabled(bool enabled) => RunBatchOperationAsync(
+        enabled ? "Manifests Enabled" : "Manifests Disabled",
+        () => OperationsService.SetManifestsEnabledAsync(_selectedManifests.Keys.ToList(), enabled, DisposalToken),
+        () => _selectedManifests.Clear());
 }

@@ -24,7 +24,7 @@
     @if (_metadata is not null)
     {
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" Style="margin-left: auto;">
-            @if (_metadata.TrainState == TrainState.InProgress)
+            @if (_metadata.TrainState is TrainState.Pending or TrainState.InProgress)
             {
                 <RadzenButton Text="Cancel"
                               Icon="cancel"

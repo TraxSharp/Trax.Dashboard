@@ -10,7 +10,7 @@ namespace Trax.Dashboard.Tests.Integration.Utils;
 /// </summary>
 public static class GridInteraction
 {
-    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(10);
 
     public static void WaitForRow(IRenderedFragment page, string text) =>
         page.WaitForAssertion(
@@ -19,7 +19,7 @@ public static class GridInteraction
                     .Any(r => r.TextContent.Contains(text))
                     .Should()
                     .BeTrue($"a row showing '{text}' is expected"),
-            Timeout
+            WaitTimeout
         );
 
     public static IElement Row(IRenderedFragment page, string text) =>

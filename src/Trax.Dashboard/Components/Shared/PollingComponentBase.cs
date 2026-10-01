@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
+using Radzen;
 using Trax.Dashboard.Services.DashboardSettings;
+using Trax.Scheduler.Services.Operations;
 
 namespace Trax.Dashboard.Components.Shared;
 
@@ -40,6 +42,9 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
+
+    [Inject]
+    private NotificationService BatchNotifications { get; set; } = default!;
 
     private CancellationTokenSource? _cts;
     private object? _lastRouteKey;
@@ -111,6 +116,55 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     }
 
     /// <summary>
+    /// Runs a batch operation answered by the operations service, and reports what the service
+    /// said. A refusal (no ids, more than the service's batch limit) is shown as
+    /// <see cref="BatchError"/> and leaves the selection and polling as they are, so the operator
+    /// can change the selection and try again. An accepted batch is reported with the service's
+    /// message, as a warning when it changed nothing; then <paramref name="onSuccess"/> runs,
+    /// polling resumes and the data reloads. An exception is shown as <see cref="BatchError"/>.
+    /// </summary>
+    /// <param name="summary">The notification's title, such as "Entries Cancelled".</param>
+    /// <param name="operation">The service call.</param>
+    /// <param name="onSuccess">Optional callback invoked after the service accepted the batch.</param>
+    private protected async Task RunBatchOperationAsync(
+        string summary,
+        Func<Task<OperationResult>> operation,
+        Action? onSuccess = null
+    )
+    {
+        BatchError = null;
+        BatchOperating = true;
+
+        try
+        {
+            var result = await operation();
+            if (!result.Success)
+            {
+                BatchError = result.Message ?? $"{summary}: the request was refused.";
+                return;
+            }
+
+            BatchNotifications.Notify(
+                result.Count == 0 ? NotificationSeverity.Warning : NotificationSeverity.Success,
+                summary,
+                result.Message ?? "",
+                duration: 4000
+            );
+            onSuccess?.Invoke();
+            PausePolling = false;
+            await LoadDataAsync(DisposalToken);
+        }
+        catch (Exception ex)
+        {
+            BatchError = ex.Message;
+        }
+        finally
+        {
+            BatchOperating = false;
+        }
+    }
+
+    /// <summary>
     /// A CancellationToken that is cancelled when the component is disposed.
     /// Event handlers can pass this to async operations so they abort when the user navigates away.
     /// </summary>
@@ -119,7 +173,7 @@ public abstract class PollingComponentBase : ComponentBase, IAsyncDisposable
     /// <summary>
     /// Loads the page's data into component state. Called once on initialization, on every
     /// poll tick that is not paused, on <see cref="RefreshNowAsync"/>, and after a successful
-    /// <see cref="RunBatchOperationAsync"/>. Background ticks run it on the renderer's
+    /// either <c>RunBatchOperationAsync</c>. Background ticks run it on the renderer's
     /// synchronization context and re-render afterwards.
     /// </summary>
     /// <param name="cancellationToken">
