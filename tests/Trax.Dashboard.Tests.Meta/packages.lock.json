@@ -73,6 +73,16 @@
           "System.CodeDom": "6.0.0"
         }
       },
+      "Trax.Core.Testing": {
+        "type": "Direct",
+        "requested": "[1.8.0, )",
+        "resolved": "1.8.0",
+        "contentHash": "6afnjZ1yAVUu1GzatZCmyraSwyLJEW0XnGgSswJ+jve9QtSNLvkp9NZztdzI/JzppBh2x+ONsATIzPgFCIt7tA==",
+        "dependencies": {
+          "Microsoft.CodeAnalysis.CSharp": "5.9.0",
+          "NUnit": "4.4.0"
+        }
+      },
       "ChilliCream.Nitro.App": {
         "type": "Transitive",
         "resolved": "32.0.2",
