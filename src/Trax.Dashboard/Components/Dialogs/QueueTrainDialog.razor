@@ -51,11 +51,12 @@
                 </RadzenStack>
             </RadzenTabsItem>
             <RadzenTabsItem Text="JSON">
-                <RadzenTextArea @bind-Value="_jsonInput"
-                                Placeholder="@($"Enter JSON for {Registration.InputTypeName}")"
-                                Rows="10"
-                                class="rz-w-100 rz-mt-2"
-                                ReadOnly="@_running" />
+                @* An input can be larger than one hub message; LargeTextArea sends it in chunks. *@
+                <LargeTextArea @bind-Value="_jsonInput"
+                               Placeholder="@($"Enter JSON for {Registration.InputTypeName}")"
+                               Rows="10"
+                               class="rz-w-100 rz-mt-2"
+                               ReadOnly="@_running" />
             </RadzenTabsItem>
         </Tabs>
     </RadzenTabs>
