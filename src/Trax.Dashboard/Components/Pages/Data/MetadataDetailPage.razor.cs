@@ -221,7 +221,12 @@ public partial class MetadataDetailPage
             // cap still apply. See docs/0017.
             using (TrustedScope.BeginTrusted("dashboard"))
                 result = await OperationsService.QueueTrainAsync(
-                    new QueueTrainInput(TrainName: _metadata.Name, InputJson: inputJson),
+                    // A re-queue repeats the run, so the new run replays this run's decisions
+                    // and takes the tracks it took, as the GraphQL requeueExecution does.
+                    new QueueTrainInput(TrainName: _metadata.Name, InputJson: inputJson)
+                    {
+                        ReplayDecisionsOf = _metadata.Id,
+                    },
                     DisposalToken
                 );
 

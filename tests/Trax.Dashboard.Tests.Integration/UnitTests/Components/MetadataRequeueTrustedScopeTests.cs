@@ -142,7 +142,11 @@ public class MetadataRequeueTrustedScopeTests
 
         await using var db = await _data.CreateDbContextAsync(default);
         var queued = await db.WorkQueues.AsNoTracking().ToListAsync();
-        queued.Should().ContainSingle().Which.TrainName.Should().Be(typeof(IGuardedTrain).FullName);
+        var entry = queued.Should().ContainSingle().Subject;
+        entry.TrainName.Should().Be(typeof(IGuardedTrain).FullName);
+        entry
+            .ReplayDecisionsOf.Should()
+            .Be(metadataId, "a re-queue repeats the run, so it replays the run's decisions");
     }
 
     private async Task<long> SeedRunAsync()
