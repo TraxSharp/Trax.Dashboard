@@ -35,7 +35,7 @@ The format is `.claude/skills/recording-decisions/ADR-FORMAT.md`.
 
 | Area | ADRs |
 | --- | --- |
-| `platform` | [0001](./0001-the-dashboard-mounts-into-the-host-app.md), [0002](./0002-the-dashboard-requires-an-authorization-posture.md), [0004](./0004-persisted-operations-pages-call-the-api-resolvers.md) |
+| `platform` | [0001](./0001-the-dashboard-mounts-into-the-host-app.md), [0002](./0002-the-dashboard-requires-an-authorization-posture.md), [0004](./0004-persisted-operations-pages-call-the-api-resolvers.md), [0006](./0006-radzen-and-test-di-float-within-their-major.md) |
 | `ui` | [0001](./0001-the-dashboard-mounts-into-the-host-app.md), [0004](./0004-persisted-operations-pages-call-the-api-resolvers.md) |
 
 ## All of them
@@ -45,3 +45,4 @@ The format is `.claude/skills/recording-decisions/ADR-FORMAT.md`.
 | [0001](./0001-the-dashboard-mounts-into-the-host-app.md) | The dashboard mounts into the host's application | platform, ui |
 | [0002](./0002-the-dashboard-requires-an-authorization-posture.md) | The dashboard refuses to start without an authorization posture | platform |
 | [0004](./0004-persisted-operations-pages-call-the-api-resolvers.md) | The persisted-operations pages call the API package's resolvers | platform, ui |
+| [0006](./0006-radzen-and-test-di-float-within-their-major.md) | Radzen.Blazor and the test DI container float within their major version | platform |

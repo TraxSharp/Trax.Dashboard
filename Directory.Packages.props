@@ -1,8 +1,9 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Some packages (Radzen.Blazor 11.*, Microsoft.Extensions.DependencyInjection 10.*)
-         intentionally float. CPM rejects floating PackageVersion items unless this is set. -->
+    <!-- Radzen.Blazor (11.*) and Microsoft.Extensions.DependencyInjection (10.*) float
+         within their major on purpose (docs/adr/0006). CPM rejects a floating PackageVersion
+         unless this is set, and once set it accepts one on any package. -->
     <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
   </PropertyGroup>
 
@@ -22,7 +23,10 @@
     <PackageVersion Include="Trax.Scheduler" Version="1.34.2" />
   </ItemGroup>
 
-  <!-- Third-party packages, pinned to exact versions. -->
+  <!-- Third-party packages. Exact versions, except the two floats above (docs/adr/0006).
+       A float moves only when the lockfiles are regenerated: CI restores with locked mode,
+       so packages.lock.json holds the version every build uses, and the packed nuspec
+       carries that resolved version as its minimum. -->
   <ItemGroup>
     <!-- bunit pulls AngleSharp transitively; pin it to 1.5.0 to clear GHSA-pgww-w46g-26qg (mXSS,
          all versions before 1.5.0). bunit 1.40.0 accepts the whole 1.x range. -->
