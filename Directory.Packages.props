@@ -1,6 +1,11 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Let a central PackageVersion apply to a package that also arrives
+         transitively, so one version wins across the graph. It does NOT mean a
+         PackageVersion can stand alone: one with no PackageReference anywhere is
+         invisible to Dependabot and freezes. See the Tests.Meta pin guard. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <!-- Radzen.Blazor (11.*) and Microsoft.Extensions.DependencyInjection (10.*) float
          within their major on purpose (docs/adr/0006). CPM rejects a floating PackageVersion
          unless this is set, and once set it accepts one on any package. -->
