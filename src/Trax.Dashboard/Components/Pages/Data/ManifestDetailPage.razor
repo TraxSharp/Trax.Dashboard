@@ -93,6 +93,7 @@
         <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
             <RadzenStack Gap="0.75rem">
                 <FieldDisplay Label="Max Retries" Value="@_manifest.MaxRetries.ToString()" />
+                <FieldDisplay Label="Replay decisions on retry" Value="@(_manifest.ReplayDecisionsOnRetry ? "Yes" : "No")" />
                 <FieldDisplay Label="Timeout (s)" Value="@(_manifest.TimeoutSeconds?.ToString() ?? "—")" />
                 <FieldDisplay Label="Last Successful Run" Value="@(_manifest.LastSuccessfulRun?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Never")" />
             </RadzenStack>

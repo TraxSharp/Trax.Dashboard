@@ -4,8 +4,10 @@ using Radzen;
 using Trax.Dashboard.Components.Shared;
 using Trax.Dashboard.Models;
 using Trax.Dashboard.Utilities;
+using Trax.Effect.Data.JunctionEvents;
 using Trax.Effect.Data.Services.IDataContextFactory;
 using Trax.Effect.Enums;
+using Trax.Effect.Models.JunctionRun;
 using Trax.Effect.Models.Log;
 using Trax.Effect.Models.Metadata;
 using Trax.Mediator.Services.TrustedExecution;
@@ -16,7 +18,8 @@ namespace Trax.Dashboard.Components.Pages.Data;
 
 /// <summary>
 /// The page for one run (metadata row), at <c>/trax/data/metadata/{id}</c>: its state, input,
-/// output, failure details and a paged grid of its logs. The user can cancel it while it is pending or in
+/// output, failure details, its junction timeline (when the host records junction events) and a
+/// paged grid of its logs. The user can cancel it while it is pending or in
 /// progress, or queue the train again with the run's saved input. Part of the dashboard UI, routed by the package; not intended to be used directly.
 /// </summary>
 public partial class MetadataDetailPage
@@ -41,6 +44,7 @@ public partial class MetadataDetailPage
     public long MetadataId { get; set; }
 
     private Metadata? _metadata;
+    private IReadOnlyList<JunctionRun> _junctionRuns = [];
     private int _logCount;
     private TraxDataGrid<LogRow>? _logsGrid;
     private readonly GridCount _logsCount = new();
@@ -77,6 +81,7 @@ public partial class MetadataDetailPage
     private protected override void OnRouteKeyChanged()
     {
         _metadata = null;
+        _junctionRuns = [];
         _rerunError = null;
     }
 
@@ -100,6 +105,13 @@ public partial class MetadataDetailPage
             _logCount = await context
                 .Logs.AsNoTracking()
                 .CountAsync(l => l.MetadataId == MetadataId, cancellationToken);
+
+            // The run's steps, through the query the API's timeline reads, so the two show the
+            // same rows. Empty when the host did not call AddJunctionEvents().
+            _junctionRuns = await context
+                .JunctionRuns.AsNoTracking()
+                .ForRun(MetadataId)
+                .ToListAsync(cancellationToken);
 
             if (_logsGrid is not null)
                 await _logsGrid.ReloadAsync();

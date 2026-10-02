@@ -129,6 +129,12 @@
                     <FieldDisplay Label="Parent ID" Value="—" />
                 }
                 <FieldDisplay Label="Executor" Value="@(_metadata.Executor ?? "—")" />
+                @if (_metadata.ReplayDecisionsOf.HasValue)
+                {
+                    <FieldDisplay Label="Replays Decisions Of">
+                        <RadzenLink Path="@($"trax/data/metadata/{_metadata.ReplayDecisionsOf}")" Text="@_metadata.ReplayDecisionsOf.ToString()" />
+                    </FieldDisplay>
+                }
             </RadzenStack>
         </RadzenColumn>
     </RadzenRow>
@@ -176,6 +182,9 @@
         </RadzenStack>
     </RadzenCard>
 }
+
+@* ── Junction Timeline (the run's steps, as AddJunctionEvents recorded them) ── *@
+<JunctionTimeline Metadata="@_metadata" Steps="@_junctionRuns" />
 
 @* ── Failure Details (only if failed) ── *@
 @if (_metadata.TrainState == TrainState.Failed)

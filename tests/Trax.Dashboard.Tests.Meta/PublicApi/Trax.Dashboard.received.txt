@@ -309,6 +309,20 @@ namespace Trax.Dashboard.Components.Shared
         public string Value { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
     }
+    public class JunctionTimeline : Microsoft.AspNetCore.Components.ComponentBase
+    {
+        public JunctionTimeline() { }
+        [Microsoft.AspNetCore.Components.EditorRequired]
+        [Microsoft.AspNetCore.Components.Parameter]
+        public Trax.Effect.Models.Metadata.Metadata Metadata { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public System.DateTime? Now { get; set; }
+        [Microsoft.AspNetCore.Components.EditorRequired]
+        [Microsoft.AspNetCore.Components.Parameter]
+        public System.Collections.Generic.IReadOnlyList<Trax.Effect.Models.JunctionRun.JunctionRun> Steps { get; set; }
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
+        protected override void OnParametersSet() { }
+    }
     public class LargeTextArea : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
     {
         public LargeTextArea() { }
