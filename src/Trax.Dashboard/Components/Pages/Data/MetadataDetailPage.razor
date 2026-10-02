@@ -184,7 +184,7 @@
 }
 
 @* ── Junction Timeline (the run's steps, as AddJunctionEvents recorded them) ── *@
-<JunctionTimeline Metadata="@_metadata" Steps="@_junctionRuns" />
+<JunctionTimeline Metadata="@_metadata" Steps="@_junctionRuns" HasMoreSteps="@_moreJunctionSteps" />
 
 @* ── Failure Details (only if failed) ── *@
 @if (_metadata.TrainState == TrainState.Failed)

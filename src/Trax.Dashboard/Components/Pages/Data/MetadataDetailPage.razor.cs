@@ -49,6 +49,7 @@ public partial class MetadataDetailPage
 
     private Metadata? _metadata;
     private IReadOnlyList<JunctionStep> _junctionRuns = [];
+    private bool _moreJunctionSteps;
     private int _logCount;
     private TraxDataGrid<LogRow>? _logsGrid;
     private readonly GridCount _logsCount = new();
@@ -86,6 +87,7 @@ public partial class MetadataDetailPage
     {
         _metadata = null;
         _junctionRuns = [];
+        _moreJunctionSteps = false;
         _rerunError = null;
     }
 
@@ -113,15 +115,15 @@ public partial class MetadataDetailPage
             // The run's steps, through the query and the mapping the API's junctionRuns uses, so
             // the two show the same rows with the same fields, and at most the API's page of them.
             // Empty when the host did not call AddJunctionEvents().
-            _junctionRuns = (
-                await context
-                    .JunctionRuns.AsNoTracking()
-                    .ForRun(MetadataId)
-                    .Take(MaxJunctionSteps)
-                    .ToListAsync(cancellationToken)
-            )
-                .Select(JunctionStep.From)
-                .ToList();
+            // One more than the page is read, so a run with more steps says so rather than
+            // ending its timeline silently.
+            var rows = await context
+                .JunctionRuns.AsNoTracking()
+                .ForRun(MetadataId)
+                .Take(MaxJunctionSteps + 1)
+                .ToListAsync(cancellationToken);
+            _moreJunctionSteps = rows.Count > MaxJunctionSteps;
+            _junctionRuns = rows.Take(MaxJunctionSteps).Select(JunctionStep.From).ToList();
 
             if (_logsGrid is not null)
                 await _logsGrid.ReloadAsync();

@@ -254,6 +254,36 @@ public class JunctionTimelineTests
         page.Markup.Should().NotContain("SomeoneElsesStep");
     }
 
+    [TestCase(500, false, TestName = "A_run_with_500_steps_shows_them_all_without_a_note")]
+    [TestCase(501, true, TestName = "A_run_with_more_than_500_steps_says_it_shows_the_first_500")]
+    public async Task The_run_page_never_truncates_the_timeline_silently(int count, bool truncated)
+    {
+        var runId = await SeedRunAsync(r => r.TrainState = TrainState.Completed);
+        await using (var db = await _data.CreateDbContextAsync(default))
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var step = Junction(i, $"Step{i}", JunctionRunState.Completed, 0, 1);
+                step.MetadataId = runId;
+                db.JunctionRuns.Add(step);
+            }
+            await db.SaveChanges(default);
+        }
+
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p => p.Add(x => x.MetadataId, runId));
+
+        page.WaitForAssertion(
+            () => page.FindAll(".cs-jt-row").Should().HaveCount(500),
+            WaitTimeout
+        );
+        if (truncated)
+            page.Find(".cs-jt-truncated")
+                .TextContent.Should()
+                .Contain("Showing the first 500 steps; this run recorded more.");
+        else
+            page.FindAll(".cs-jt-truncated").Should().BeEmpty();
+    }
+
     [Test]
     public async Task The_run_page_hints_at_AddJunctionEvents_when_the_run_has_no_steps()
     {

@@ -20,6 +20,12 @@
     }
     else
     {
+        @if (HasMoreSteps)
+        {
+            <RadzenText TextStyle="TextStyle.Body2" class="cs-jt-truncated rz-mb-2" Style="color: var(--rz-warning); margin: 0;">
+                Showing the first @Steps.Count steps; this run recorded more.
+            </RadzenText>
+        }
         <div class="cs-jt">
             @foreach (var row in _rows)
             {
@@ -97,6 +103,13 @@
     /// </summary>
     [Parameter, EditorRequired]
     public IReadOnlyList<JunctionStep> Steps { get; set; } = [];
+
+    /// <summary>
+    /// True when the run recorded more steps than <see cref="Steps"/> holds, so the timeline says
+    /// it shows only the first of them.
+    /// </summary>
+    [Parameter]
+    public bool HasMoreSteps { get; set; }
 
     /// <summary>
     /// The time an in-progress step's bar extends to. Defaults to the current UTC time, so each

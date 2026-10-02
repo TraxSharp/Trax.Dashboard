@@ -312,6 +312,8 @@ namespace Trax.Dashboard.Components.Shared
     public class JunctionTimeline : Microsoft.AspNetCore.Components.ComponentBase
     {
         public JunctionTimeline() { }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public bool HasMoreSteps { get; set; }
         [Microsoft.AspNetCore.Components.EditorRequired]
         [Microsoft.AspNetCore.Components.Parameter]
         public Trax.Effect.Models.Metadata.Metadata Metadata { get; set; }
