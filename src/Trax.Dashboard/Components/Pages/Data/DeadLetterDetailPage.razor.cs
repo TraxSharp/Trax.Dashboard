@@ -145,7 +145,9 @@ public partial class DeadLetterDetailPage
         }
     }
 
-    private async Task RequeueManifest()
+    // Asking afresh uses the scheduler's askAfresh overload, as the API's requeueDeadLetter does
+    // with askAfresh set; the default re-queue keeps its own overload.
+    private async Task RequeueManifest(bool askAfresh)
     {
         if (_deadLetter is null)
             return;
@@ -155,7 +157,13 @@ public partial class DeadLetterDetailPage
 
         try
         {
-            var result = await Scheduler.RequeueDeadLetterAsync(DeadLetterId, DisposalToken);
+            var result = askAfresh
+                ? await Scheduler.RequeueDeadLetterAsync(
+                    DeadLetterId,
+                    askAfresh: true,
+                    DisposalToken
+                )
+                : await Scheduler.RequeueDeadLetterAsync(DeadLetterId, DisposalToken);
 
             if (!result.Success)
             {

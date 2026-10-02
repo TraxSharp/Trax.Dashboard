@@ -2,6 +2,7 @@ using Bunit;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Radzen;
+using Trax.Api.DTOs;
 using Trax.Core.Exceptions;
 using Trax.Dashboard.Components.Pages.Data;
 using Trax.Dashboard.Components.Shared;
@@ -122,6 +123,39 @@ public class JunctionTimelineTests
 
         timeline.Find(".cs-jt-answer").TextContent.Should().Be("withheld");
         timeline.Markup.Should().NotContain("MARKER-ANSWER-91234").And.NotContain("77%");
+    }
+
+    [Test]
+    public void A_withheld_step_reads_withheld_even_when_handed_an_answer()
+    {
+        // JunctionStep.From already drops a withheld answer; the component does not rely on it.
+        var step = new JunctionStep(
+            1,
+            JunctionRunKind.Choice,
+            "Acme.Sensitive.Plan",
+            JunctionRunState.Completed,
+            Start.AddSeconds(2),
+            null,
+            null,
+            null,
+            null,
+            "Acme.Sensitive.Plan",
+            "MARKER-ANSWER-7781",
+            0.66,
+            false,
+            null,
+            AnswerWithheld: true,
+            null
+        );
+
+        var timeline = _ctx.RenderComponent<JunctionTimeline>(p =>
+            p.Add(x => x.Metadata, Run(TrainState.Completed, ended: 10))
+                .Add(x => x.Steps, new[] { step })
+                .Add(x => x.Now, Start.AddMinutes(5))
+        );
+
+        timeline.Find(".cs-jt-answer").TextContent.Should().Be("withheld");
+        timeline.Markup.Should().NotContain("MARKER-ANSWER-7781").And.NotContain("66%");
     }
 
     [Test]
@@ -269,7 +303,7 @@ public class JunctionTimelineTests
     }
 
     [TestCase(true, "Yes")]
-    [TestCase(false, "No")]
+    [TestCase(false, "No (retries ask afresh)")]
     public async Task The_manifest_page_shows_whether_retries_replay_decisions(
         bool replay,
         string expected
@@ -294,14 +328,7 @@ public class JunctionTimelineTests
         );
 
         page.WaitForAssertion(
-            () =>
-            {
-                var field = page.FindAll(".rz-stack")
-                    .First(s =>
-                        s.Children.FirstOrDefault()?.TextContent == "Replay decisions on retry"
-                    );
-                field.TextContent.Should().EndWith(expected);
-            },
+            () => page.Find(".cs-replay-value").TextContent.Should().Be(expected),
             WaitTimeout
         );
     }
@@ -313,7 +340,8 @@ public class JunctionTimelineTests
     ) =>
         _ctx.RenderComponent<JunctionTimeline>(p =>
             p.Add(x => x.Metadata, run)
-                .Add(x => x.Steps, steps)
+                // Mapped as the page maps them, through the API's JunctionStep.
+                .Add(x => x.Steps, steps.Select(JunctionStep.From).ToList())
                 .Add(x => x.Now, now ?? Start.AddMinutes(5))
         );
 

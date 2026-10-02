@@ -1,6 +1,6 @@
 @* Per-step timeline of one run, read from trax.junction_run (written by AddJunctionEvents) *@
 @using System.Globalization
-@using Trax.Effect.Models.JunctionRun
+@using Trax.Api.DTOs
 
 <RadzenCard class="rz-mb-4">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-2">
@@ -90,11 +90,13 @@
     public Metadata Metadata { get; set; } = default!;
 
     /// <summary>
-    /// The run's steps, as <c>JunctionRunQueries.ForRun</c> reads them: ordered by position. Empty
-    /// when the host did not enable junction events.
+    /// The run's steps, as <c>JunctionRunQueries.ForRun</c> reads them and
+    /// <see cref="JunctionStep.From(Trax.Effect.Models.JunctionRun.JunctionRun)"/> maps them for the
+    /// API: ordered by position, a withheld answer already absent. Empty when the host did not
+    /// enable junction events.
     /// </summary>
     [Parameter, EditorRequired]
-    public IReadOnlyList<JunctionRun> Steps { get; set; } = [];
+    public IReadOnlyList<JunctionStep> Steps { get; set; } = [];
 
     /// <summary>
     /// The time an in-progress step's bar extends to. Defaults to the current UTC time, so each
@@ -138,13 +140,17 @@
                 var stepEnd = EndOf(step, now);
                 var left = Math.Clamp((step.StartedAt - origin).TotalMilliseconds / span, 0, 1);
                 var width = Math.Clamp((stepEnd - step.StartedAt).TotalMilliseconds / span, 0, 1 - left);
+                // An ended step's duration is the one the API reports; a running one's is so far.
+                var duration = step.DurationMs is { } ms
+                    ? FormatDuration(ms)
+                    : FormatDuration(Math.Max((stepEnd - step.StartedAt).TotalMilliseconds, 0))
+                        + (step.State == JunctionRunState.InProgress ? " so far" : "");
                 return new TimelineRow(
                     step,
                     left,
                     Math.Max(width, 0.005),
                     IsPoint: step.Kind != JunctionRunKind.Junction,
-                    Duration: FormatDuration(Math.Max((stepEnd - step.StartedAt).TotalMilliseconds, 0))
-                        + (step.State == JunctionRunState.InProgress ? " so far" : "")
+                    Duration: duration
                 );
             })
             .ToList();
@@ -152,7 +158,7 @@
 
     // A step that has not ended is drawn up to now while it runs; a step that ended without an end
     // time (a question, or a row the writer dropped the end of) is drawn as a point.
-    private static DateTime EndOf(JunctionRun step, DateTime now) =>
+    private static DateTime EndOf(JunctionStep step, DateTime now) =>
         step.EndedAt
         ?? (step.State == JunctionRunState.InProgress && now > step.StartedAt ? now : step.StartedAt);
 
@@ -191,7 +197,7 @@
         };
 
     private sealed record TimelineRow(
-        JunctionRun Step,
+        JunctionStep Step,
         double Left,
         double Width,
         bool IsPoint,

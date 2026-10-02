@@ -319,7 +319,7 @@ namespace Trax.Dashboard.Components.Shared
         public System.DateTime? Now { get; set; }
         [Microsoft.AspNetCore.Components.EditorRequired]
         [Microsoft.AspNetCore.Components.Parameter]
-        public System.Collections.Generic.IReadOnlyList<Trax.Effect.Models.JunctionRun.JunctionRun> Steps { get; set; }
+        public System.Collections.Generic.IReadOnlyList<Trax.Api.DTOs.JunctionStep> Steps { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
         protected override void OnParametersSet() { }
     }

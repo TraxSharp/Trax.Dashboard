@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
+using Trax.Api.DTOs;
 using Trax.Dashboard.Components.Shared;
 using Trax.Dashboard.Models;
 using Trax.Dashboard.Utilities;
 using Trax.Effect.Data.JunctionEvents;
 using Trax.Effect.Data.Services.IDataContextFactory;
 using Trax.Effect.Enums;
-using Trax.Effect.Models.JunctionRun;
 using Trax.Effect.Models.Log;
 using Trax.Effect.Models.Metadata;
 using Trax.Mediator.Services.TrustedExecution;
@@ -43,8 +43,12 @@ public partial class MetadataDetailPage
     [Parameter]
     public long MetadataId { get; set; }
 
+    // The API's largest junctionRuns page, so the page never reads more steps per poll than one
+    // API call returns.
+    private const int MaxJunctionSteps = 500;
+
     private Metadata? _metadata;
-    private IReadOnlyList<JunctionRun> _junctionRuns = [];
+    private IReadOnlyList<JunctionStep> _junctionRuns = [];
     private int _logCount;
     private TraxDataGrid<LogRow>? _logsGrid;
     private readonly GridCount _logsCount = new();
@@ -106,12 +110,18 @@ public partial class MetadataDetailPage
                 .Logs.AsNoTracking()
                 .CountAsync(l => l.MetadataId == MetadataId, cancellationToken);
 
-            // The run's steps, through the query the API's timeline reads, so the two show the
-            // same rows. Empty when the host did not call AddJunctionEvents().
-            _junctionRuns = await context
-                .JunctionRuns.AsNoTracking()
-                .ForRun(MetadataId)
-                .ToListAsync(cancellationToken);
+            // The run's steps, through the query and the mapping the API's junctionRuns uses, so
+            // the two show the same rows with the same fields, and at most the API's page of them.
+            // Empty when the host did not call AddJunctionEvents().
+            _junctionRuns = (
+                await context
+                    .JunctionRuns.AsNoTracking()
+                    .ForRun(MetadataId)
+                    .Take(MaxJunctionSteps)
+                    .ToListAsync(cancellationToken)
+            )
+                .Select(JunctionStep.From)
+                .ToList();
 
             if (_logsGrid is not null)
                 await _logsGrid.ReloadAsync();

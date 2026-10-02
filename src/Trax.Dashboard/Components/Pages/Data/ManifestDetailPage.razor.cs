@@ -58,6 +58,8 @@ public partial class ManifestDetailPage
     private List<Exclusion> _exclusions = [];
     private bool _triggering;
     private string? _triggerError;
+    private bool _settingReplay;
+    private string? _replayError;
 
     /// <summary>
     /// Loads the manifest with its group and exclusions, counts its runs by state over all time,
@@ -132,7 +134,9 @@ public partial class ManifestDetailPage
         };
     }
 
-    private async Task TriggerManifest()
+    // The default trigger keeps its own overload; asking afresh is the overload the API's
+    // triggerManifest takes when askAfresh is set, so a queued retry it releases stops replaying.
+    private async Task TriggerManifest(bool askAfresh)
     {
         if (_manifest is null)
             return;
@@ -142,7 +146,14 @@ public partial class ManifestDetailPage
 
         try
         {
-            await TraxScheduler.TriggerAsync(_manifest.ExternalId);
+            if (askAfresh)
+                await TraxScheduler.TriggerAsync(
+                    _manifest.ExternalId,
+                    askAfresh: true,
+                    DisposalToken
+                );
+            else
+                await TraxScheduler.TriggerAsync(_manifest.ExternalId);
 
             NotificationService.Notify(
                 NotificationSeverity.Success,
@@ -158,6 +169,50 @@ public partial class ManifestDetailPage
         finally
         {
             _triggering = false;
+        }
+    }
+
+    // Through the operations service, as the API's setManifestsReplayDecisionsOnRetry is, and
+    // reported as the enable and disable actions report theirs: the service's message on success,
+    // its refusal or the exception as an alert.
+    private async Task SetReplayDecisionsOnRetry(bool replay)
+    {
+        if (_manifest is null)
+            return;
+
+        _replayError = null;
+        _settingReplay = true;
+
+        try
+        {
+            var result = await OperationsService.SetManifestsReplayDecisionsOnRetryAsync(
+                [_manifest.Id],
+                replay,
+                DisposalToken
+            );
+
+            if (!result.Success)
+            {
+                _replayError = result.Message;
+                return;
+            }
+
+            _manifest.ReplayDecisionsOnRetry = replay;
+            NotificationService.Notify(
+                NotificationSeverity.Success,
+                replay ? "Retries Replay Decisions" : "Retries Ask Afresh",
+                result.Message ?? "",
+                duration: 4000
+            );
+            await LoadDataAsync(DisposalToken);
+        }
+        catch (Exception ex)
+        {
+            _replayError = ex.Message;
+        }
+        finally
+        {
+            _settingReplay = false;
         }
     }
 }
