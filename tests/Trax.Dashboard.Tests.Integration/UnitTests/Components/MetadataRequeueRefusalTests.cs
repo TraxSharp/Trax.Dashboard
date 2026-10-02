@@ -126,6 +126,51 @@ public class MetadataRequeueRefusalTests
     }
 
     [Test]
+    public async Task A_run_whose_train_is_no_longer_registered_says_so()
+    {
+        var metadataId = await SeedRunAsync("""{"Value": "kept"}""", "Some.Retired.ITrain");
+
+        await ClickRequeueAndExpectAsync(
+            metadataId,
+            $"Train Some.Retired.ITrain is no longer registered, so execution {metadataId} "
+                + "cannot be re-queued."
+        );
+        (await QueuedCountAsync()).Should().Be(0);
+    }
+
+    [Test]
+    public async Task A_saved_input_that_no_longer_reads_as_its_type_is_refused_as_the_runs_input()
+    {
+        // Saved when Value was an object; the input type now says it is a string.
+        var metadataId = await SeedRunAsync("""{"Value": {"was": "an object"}}""");
+
+        await ClickRequeueAndExpectAsync(
+            metadataId,
+            $"The saved input of run {metadataId} no longer reads as "
+                + $"{typeof(RequeuedInput).FullName}: "
+        );
+        (await QueuedCountAsync()).Should().Be(0);
+    }
+
+    private async Task ClickRequeueAndExpectAsync(long metadataId, string message)
+    {
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p =>
+            p.Add(x => x.MetadataId, metadataId)
+        );
+        var requeue = page.WaitForElement("button:contains('Re-queue')", TimeSpan.FromSeconds(10));
+        await requeue.ClickAsync(new());
+
+        page.WaitForAssertion(
+            () =>
+                page.FindAll(".rz-alert")
+                    .Select(a => a.TextContent)
+                    .Should()
+                    .Contain(t => t.Contains(message) && !t.Contains("InputJson")),
+            TimeSpan.FromSeconds(10)
+        );
+    }
+
+    [Test]
     public async Task An_input_with_a_member_named_like_a_marker_is_requeued()
     {
         var metadataId = await SeedRunAsync("""{"Value": "kept", "_truncated": false}""");
@@ -217,12 +262,12 @@ public class MetadataRequeueRefusalTests
         }
     }
 
-    private async Task<long> SeedRunAsync(string input)
+    private async Task<long> SeedRunAsync(string input, string? trainName = null)
     {
         var run = Metadata.Create(
             new CreateMetadata
             {
-                Name = typeof(IRequeuedTrain).FullName!,
+                Name = trainName ?? typeof(IRequeuedTrain).FullName!,
                 ExternalId = Guid.NewGuid().ToString("N"),
                 Input = null,
             }

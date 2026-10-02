@@ -176,9 +176,11 @@ public class MetadataRequeueTrustedScopeTests
                 MetadataId = run.Id,
                 QuestionKey = "Route",
                 Occurrence = 0,
+                Fingerprint = new string('0', 64),
                 Kind = "choice",
                 Question = "{}",
                 Answer = "\"Express\"",
+                Routes = """[{"track": "Express", "fallback_reason": null}]""",
                 DecidedAt = DateTime.UtcNow,
             }
         );
