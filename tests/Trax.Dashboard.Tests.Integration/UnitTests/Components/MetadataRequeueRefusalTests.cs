@@ -1,3 +1,4 @@
+using System.Reflection;
 using Bunit;
 using Bunit.TestDoubles;
 using FluentAssertions;
@@ -141,6 +142,79 @@ public class MetadataRequeueRefusalTests
             TimeSpan.FromSeconds(10)
         );
         (await QueuedCountAsync()).Should().Be(1, "a marker name with any value but true is data");
+    }
+
+    [Test]
+    public async Task The_requeue_goes_through_the_shared_requeue_and_replays_nothing_when_the_run_decided_nothing()
+    {
+        var metadataId = await SeedRunAsync("""{"Value": "kept"}""");
+        var calls = new List<(string Method, bool Trusted)>();
+        _ctx.Services.AddScoped<IOperationsService>(sp =>
+            RecordingOperations.Wrap(
+                new OperationsService(
+                    sp.GetRequiredService<ITrainDiscoveryService>(),
+                    _data,
+                    new SchedulerConfiguration(),
+                    sp.GetRequiredService<ITrainExecutionService>()
+                ),
+                sp.GetRequiredService<ITrustedExecutionScope>(),
+                calls
+            )
+        );
+
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p =>
+            p.Add(x => x.MetadataId, metadataId)
+        );
+        var requeue = page.WaitForElement("button:contains('Re-queue')", TimeSpan.FromSeconds(10));
+        await requeue.ClickAsync(new());
+
+        var navigation = _ctx.Services.GetRequiredService<FakeNavigationManager>();
+        page.WaitForAssertion(
+            () => navigation.Uri.Should().Contain("trax/data/work-queue/"),
+            TimeSpan.FromSeconds(10)
+        );
+        calls
+            .Should()
+            .Equal(
+                [("RequeueExecutionAsync", true)],
+                "the page makes the API's requeueExecution call, inside the dashboard's trusted "
+                    + "scope (docs/0017), and nothing else"
+            );
+        await using var db = await _data.CreateDbContextAsync(default);
+        (await db.WorkQueues.AsNoTracking().SingleAsync())
+            .ReplayDecisionsOf.Should()
+            .BeNull("there is nothing to replay, so it is queued as an ordinary enqueue");
+    }
+
+    /// <summary>
+    /// Forwards every call to the real operations service and records which method was called and
+    /// whether the caller was inside a trusted scope at the time.
+    /// </summary>
+    public class RecordingOperations : DispatchProxy
+    {
+        private IOperationsService _inner = null!;
+        private ITrustedExecutionScope _scope = null!;
+        private List<(string, bool)> _calls = null!;
+
+        public static IOperationsService Wrap(
+            IOperationsService inner,
+            ITrustedExecutionScope scope,
+            List<(string, bool)> calls
+        )
+        {
+            var proxy = Create<IOperationsService, RecordingOperations>();
+            var recording = (RecordingOperations)(object)proxy;
+            recording._inner = inner;
+            recording._scope = scope;
+            recording._calls = calls;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            _calls.Add((targetMethod!.Name, _scope.IsTrusted));
+            return targetMethod.Invoke(_inner, args);
+        }
     }
 
     private async Task<long> SeedRunAsync(string input)
