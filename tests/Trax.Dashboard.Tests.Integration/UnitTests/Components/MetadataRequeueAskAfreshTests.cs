@@ -122,6 +122,36 @@ public class MetadataRequeueAskAfreshTests
         page.WaitForAssertion(() => IsBusy(page, clicked).Should().BeFalse(), WaitTimeout);
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task The_requeue_notification_carries_the_services_message(bool askAfresh)
+    {
+        const string message =
+            "Work queue entry 12 created. It asks its deciders afresh: the decisions of "
+            + "execution 3 are already replayed by another run or queued entry, and are replayed once.";
+        _ctx.Services.AddDashboardPageServices(_data);
+        var operations = PendingOperations.Create(
+            Task.FromResult(new OperationResult(true, Id: 12, Count: 1, Message: message)),
+            out _
+        );
+        _ctx.Services.AddScoped(_ => operations);
+        var metadataId = await SeedRunAsync();
+
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p =>
+            p.Add(x => x.MetadataId, metadataId)
+        );
+        page.WaitForElement("button:contains('Re-queue')", WaitTimeout);
+        await Button(page, askAfresh ? Afresh : Plain).ClickAsync(new());
+
+        var notice = _ctx
+            .Services.GetRequiredService<NotificationService>()
+            .Messages.Should()
+            .ContainSingle()
+            .Subject;
+        notice.Severity.Should().Be(NotificationSeverity.Success);
+        notice.Detail.Should().Contain(message, "the operator sees what the API's caller sees");
+    }
+
     private static AngleSharp.Dom.IElement Button(IRenderedFragment page, string label) =>
         page.FindAll("button")
             .First(b => b.QuerySelector(".rz-button-text")?.TextContent.Trim() == label);

@@ -284,11 +284,15 @@ public partial class MetadataDetailPage
                 return;
             }
 
+            // The service's message as the API returns it, which also says when a re-queue asks
+            // afresh because this run's decisions are already replayed elsewhere.
             NotificationService.Notify(
                 NotificationSeverity.Success,
                 "Train Queued",
-                $"{ShortName(_metadata.Name)} has been re-queued (ID {entryId}).",
-                duration: 4000
+                string.IsNullOrWhiteSpace(result.Message)
+                    ? $"{ShortName(_metadata.Name)} has been re-queued (ID {entryId})."
+                    : $"{ShortName(_metadata.Name)} has been re-queued. {result.Message}",
+                duration: 8000
             );
 
             Navigation.NavigateTo($"trax/data/work-queue/{entryId}");
