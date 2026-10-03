@@ -29,21 +29,39 @@
         <div class="cs-jt">
             @foreach (var row in _rows)
             {
-                var step = row.Step;
-                <div class="cs-jt-row" data-position="@step.Position">
+                var step = row.Item.Step;
+                var nameWithheld = row.Item.NameWithheld;
+                <div class="cs-jt-row @(row.Item.TrackPosition is null ? "" : "cs-jt-row--on-track")" data-position="@step.Position">
                     <div class="cs-jt-label">
-                        <div class="cs-jt-name" title="@step.Name">
+                        <div class="cs-jt-name" title="@(nameWithheld ? "withheld" : step.Name)">
                             <RadzenIcon Icon="@KindIcon(step.Kind)" Style="font-size: 16px;" />
-                            <span class="cs-jt-title">@(step.Kind == JunctionRunKind.Junction ? step.Name : KindLabel(step.Kind))</span>
+                            <span class="cs-jt-step-number">#@step.Position</span>
+                            @if (step.Kind != JunctionRunKind.Junction)
+                            {
+                                <span class="cs-jt-title">@KindLabel(step.Kind)</span>
+                            }
+                            else if (nameWithheld)
+                            {
+                                <span class="cs-jt-title cs-jt-answer--withheld">withheld</span>
+                            }
+                            else
+                            {
+                                <span class="cs-jt-title">@step.Name</span>
+                            }
                         </div>
                         <div class="cs-jt-detail">
+                            @if (row.Item.TrackPosition is { } track)
+                            {
+                                <span class="cs-jt-on-track">on track of step #@track</span>
+                            }
                             @if (step.Kind == JunctionRunKind.Junction)
                             {
                                 <span class="cs-jt-duration">@row.Duration</span>
                             }
                             else
                             {
-                                <span class="cs-jt-question" title="@(step.QuestionKey ?? step.Name)">@(step.QuestionKey ?? step.Name)</span>
+                                var question = step.QuestionKey ?? (nameWithheld ? "withheld" : step.Name);
+                                <span class="cs-jt-question" title="@question">@question</span>
                                 <span>&rarr;</span>
                                 @if (step.AnswerWithheld)
                                 {
@@ -97,12 +115,12 @@
 
     /// <summary>
     /// The run's steps, as <c>JunctionRunQueries.ForRun</c> reads them and
-    /// <see cref="JunctionStep.From(Trax.Effect.Models.JunctionRun.JunctionRun)"/> maps them for the
-    /// API: ordered by position, a withheld answer already absent. Empty when the host did not
-    /// enable junction events.
+    /// <see cref="JunctionTimelineStep.From"/> maps them: ordered by position, a withheld answer
+    /// already absent. A step whose name is withheld is shown as "withheld". Empty when the host
+    /// did not enable junction events.
     /// </summary>
     [Parameter, EditorRequired]
-    public IReadOnlyList<JunctionStep> Steps { get; set; } = [];
+    public IReadOnlyList<JunctionTimelineStep> Steps { get; set; } = [];
 
     /// <summary>
     /// True when the run recorded more steps than <see cref="Steps"/> holds, so the timeline says
@@ -124,7 +142,7 @@
     protected override void OnParametersSet()
     {
         var now = Now ?? DateTime.UtcNow;
-        _attempt = Steps.Select(s => s.Attempt).FirstOrDefault(a => a is not null);
+        _attempt = Steps.Select(s => s.Step.Attempt).FirstOrDefault(a => a is not null);
 
         if (Steps.Count == 0)
         {
@@ -133,12 +151,12 @@
         }
 
         var origin = Metadata.StartTime;
-        var firstStart = Steps.Min(s => s.StartedAt);
+        var firstStart = Steps.Min(s => s.Step.StartedAt);
         if (origin == default || firstStart < origin)
             origin = firstStart;
 
         var end = Metadata.EndTime ?? now;
-        foreach (var step in Steps)
+        foreach (var step in Steps.Select(s => s.Step))
         {
             var stepEnd = EndOf(step, now);
             if (stepEnd > end)
@@ -148,8 +166,9 @@
         var span = Math.Max((end - origin).TotalMilliseconds, 1);
 
         _rows = Steps
-            .Select(step =>
+            .Select(item =>
             {
+                var step = item.Step;
                 var stepEnd = EndOf(step, now);
                 var left = Math.Clamp((step.StartedAt - origin).TotalMilliseconds / span, 0, 1);
                 var width = Math.Clamp((stepEnd - step.StartedAt).TotalMilliseconds / span, 0, 1 - left);
@@ -159,7 +178,7 @@
                     : FormatDuration(Math.Max((stepEnd - step.StartedAt).TotalMilliseconds, 0))
                         + (step.State == JunctionRunState.InProgress ? " so far" : "");
                 return new TimelineRow(
-                    step,
+                    item,
                     left,
                     Math.Max(width, 0.005),
                     IsPoint: step.Kind != JunctionRunKind.Junction,
@@ -210,7 +229,7 @@
         };
 
     private sealed record TimelineRow(
-        JunctionStep Step,
+        JunctionTimelineStep Item,
         double Left,
         double Width,
         bool IsPoint,

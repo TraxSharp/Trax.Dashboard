@@ -330,6 +330,19 @@
     min-width: 0;
 }
 
+/* A junction that ran on a routing step's track is indented under it. */
+.cs-jt-row--on-track .cs-jt-label {
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--rz-base-300, rgba(255, 255, 255, 0.15));
+}
+
+.cs-jt-step-number,
+.cs-jt-on-track {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--rz-text-disabled-color, rgba(255, 255, 255, 0.4));
+}
+
 .cs-jt-name {
     display: flex;
     align-items: center;

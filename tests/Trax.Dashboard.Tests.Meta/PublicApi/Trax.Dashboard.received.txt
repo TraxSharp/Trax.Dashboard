@@ -321,9 +321,17 @@ namespace Trax.Dashboard.Components.Shared
         public System.DateTime? Now { get; set; }
         [Microsoft.AspNetCore.Components.EditorRequired]
         [Microsoft.AspNetCore.Components.Parameter]
-        public System.Collections.Generic.IReadOnlyList<Trax.Api.DTOs.JunctionStep> Steps { get; set; }
+        public System.Collections.Generic.IReadOnlyList<Trax.Dashboard.Components.Shared.JunctionTimelineStep> Steps { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
         protected override void OnParametersSet() { }
+    }
+    public sealed class JunctionTimelineStep : System.IEquatable<Trax.Dashboard.Components.Shared.JunctionTimelineStep>
+    {
+        public JunctionTimelineStep(Trax.Api.DTOs.JunctionStep Step, bool NameWithheld, int? TrackPosition) { }
+        public bool NameWithheld { get; init; }
+        public Trax.Api.DTOs.JunctionStep Step { get; init; }
+        public int? TrackPosition { get; init; }
+        public static Trax.Dashboard.Components.Shared.JunctionTimelineStep From(Trax.Effect.Models.JunctionRun.JunctionRun row) { }
     }
     public class LargeTextArea : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
     {

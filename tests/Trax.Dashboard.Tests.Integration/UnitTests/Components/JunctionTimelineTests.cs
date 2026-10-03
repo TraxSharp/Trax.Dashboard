@@ -150,12 +150,51 @@ public class JunctionTimelineTests
 
         var timeline = _ctx.RenderComponent<JunctionTimeline>(p =>
             p.Add(x => x.Metadata, Run(TrainState.Completed, ended: 10))
-                .Add(x => x.Steps, new[] { step })
+                .Add(x => x.Steps, new[] { new JunctionTimelineStep(step, false, null) })
                 .Add(x => x.Now, Start.AddMinutes(5))
         );
 
         timeline.Find(".cs-jt-answer").TextContent.Should().Be("withheld");
         timeline.Markup.Should().NotContain("MARKER-ANSWER-7781").And.NotContain("66%");
+    }
+
+    [Test]
+    public void A_junction_whose_name_is_withheld_never_renders_its_stored_name()
+    {
+        // Effect stores "(withheld)"; even a row still holding the real name must not show it.
+        var route = Decision(1, JunctionRunKind.Route, "Acme.Sensitive.Plan");
+        route.AnswerWithheld = true;
+        var hidden = Junction(2, "MARKER-JUNCTION-NAME-4471", JunctionRunState.Completed, 5, 6);
+        hidden.NameWithheld = true;
+        hidden.TrackPosition = 1;
+
+        var timeline = Render(Run(TrainState.Completed, ended: 10), [route, hidden]);
+
+        var row = timeline.Find(".cs-jt-row[data-position='2']");
+        row.QuerySelector(".cs-jt-title")!.TextContent.Should().Be("withheld");
+        row.QuerySelector(".cs-jt-title")!.ClassList.Should().Contain("cs-jt-answer--withheld");
+        row.ClassList.Should().Contain("cs-jt-row--on-track");
+        row.QuerySelector(".cs-jt-on-track")!.TextContent.Should().Be("on track of step #1");
+        timeline.Markup.Should().NotContain("MARKER-JUNCTION-NAME-4471");
+    }
+
+    [Test]
+    public void A_junction_on_a_visible_track_shows_its_name_and_the_track()
+    {
+        var route = Decision(1, JunctionRunKind.Route, "Acme.Routing.Refund");
+        route.Answer = "Approve";
+        var onTrack = Junction(2, "ApproveRefund", JunctionRunState.Completed, 5, 6);
+        onTrack.TrackPosition = 1;
+
+        var timeline = Render(Run(TrainState.Completed, ended: 10), [route, onTrack]);
+
+        var row = timeline.Find(".cs-jt-row[data-position='2']");
+        row.QuerySelector(".cs-jt-title")!.TextContent.Should().Be("ApproveRefund");
+        row.QuerySelector(".cs-jt-on-track")!.TextContent.Should().Be("on track of step #1");
+        timeline
+            .Find(".cs-jt-row[data-position='1']")
+            .ClassList.Should()
+            .NotContain("cs-jt-row--on-track");
     }
 
     [Test]
@@ -371,7 +410,7 @@ public class JunctionTimelineTests
         _ctx.RenderComponent<JunctionTimeline>(p =>
             p.Add(x => x.Metadata, run)
                 // Mapped as the page maps them, through the API's JunctionStep.
-                .Add(x => x.Steps, steps.Select(JunctionStep.From).ToList())
+                .Add(x => x.Steps, steps.Select(JunctionTimelineStep.From).ToList())
                 .Add(x => x.Now, now ?? Start.AddMinutes(5))
         );
 

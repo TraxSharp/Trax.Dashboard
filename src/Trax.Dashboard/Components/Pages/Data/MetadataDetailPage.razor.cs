@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
-using Trax.Api.DTOs;
 using Trax.Dashboard.Components.Shared;
 using Trax.Dashboard.Models;
 using Trax.Dashboard.Utilities;
@@ -48,7 +47,7 @@ public partial class MetadataDetailPage
     private const int MaxJunctionSteps = 500;
 
     private Metadata? _metadata;
-    private IReadOnlyList<JunctionStep> _junctionRuns = [];
+    private IReadOnlyList<JunctionTimelineStep> _junctionRuns = [];
     private bool _moreJunctionSteps;
     private int _logCount;
     private TraxDataGrid<LogRow>? _logsGrid;
@@ -123,7 +122,7 @@ public partial class MetadataDetailPage
                 .Take(MaxJunctionSteps + 1)
                 .ToListAsync(cancellationToken);
             _moreJunctionSteps = rows.Count > MaxJunctionSteps;
-            _junctionRuns = rows.Take(MaxJunctionSteps).Select(JunctionStep.From).ToList();
+            _junctionRuns = rows.Take(MaxJunctionSteps).Select(JunctionTimelineStep.From).ToList();
 
             if (_logsGrid is not null)
                 await _logsGrid.ReloadAsync();
