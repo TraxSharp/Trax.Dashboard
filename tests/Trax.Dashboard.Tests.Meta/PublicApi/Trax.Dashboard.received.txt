@@ -324,6 +324,7 @@ namespace Trax.Dashboard.Components.Shared
         public System.Collections.Generic.IReadOnlyList<Trax.Api.DTOs.JunctionStep> Steps { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder @__builder) { }
         protected override void OnParametersSet() { }
+        protected override bool ShouldRender() { }
     }
     public class LargeTextArea : Microsoft.AspNetCore.Components.ComponentBase, System.IDisposable
     {

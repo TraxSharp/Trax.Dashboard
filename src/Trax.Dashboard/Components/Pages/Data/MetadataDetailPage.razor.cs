@@ -6,8 +6,10 @@ using Trax.Dashboard.Components.Shared;
 using Trax.Dashboard.Models;
 using Trax.Dashboard.Utilities;
 using Trax.Effect.Data.JunctionEvents;
+using Trax.Effect.Data.Services.DataContext;
 using Trax.Effect.Data.Services.IDataContextFactory;
 using Trax.Effect.Enums;
+using Trax.Effect.Models.JunctionRun;
 using Trax.Effect.Models.Log;
 using Trax.Effect.Models.Metadata;
 using Trax.Mediator.Services.TrustedExecution;
@@ -50,6 +52,11 @@ public partial class MetadataDetailPage
     private Metadata? _metadata;
     private IReadOnlyList<JunctionStep> _junctionRuns = [];
     private bool _moreJunctionSteps;
+
+    // How many loads have read the timeline since the run was first seen finished. A finished
+    // run's steps are read in full twice, once when it is first seen finished and once more for a
+    // step the writer stored a moment after the run ended, and then not again.
+    private int _finishedTimelineReads;
     private int _logCount;
     private TraxDataGrid<LogRow>? _logsGrid;
     private readonly GridCount _logsCount = new();
@@ -88,6 +95,7 @@ public partial class MetadataDetailPage
         _metadata = null;
         _junctionRuns = [];
         _moreJunctionSteps = false;
+        _finishedTimelineReads = 0;
         _rerunError = null;
     }
 
@@ -112,22 +120,81 @@ public partial class MetadataDetailPage
                 .Logs.AsNoTracking()
                 .CountAsync(l => l.MetadataId == MetadataId, cancellationToken);
 
-            // The run's steps, through the query and the mapping the API's junctionRuns uses, so
-            // the two show the same rows with the same fields, and at most the API's page of them.
-            // Empty when the host did not call AddJunctionEvents().
-            // One more than the page is read, so a run with more steps says so rather than
-            // ending its timeline silently.
-            var rows = await context
-                .JunctionRuns.AsNoTracking()
-                .ForRun(MetadataId)
-                .Take(MaxJunctionSteps + 1)
-                .ToListAsync(cancellationToken);
-            _moreJunctionSteps = rows.Count > MaxJunctionSteps;
-            _junctionRuns = rows.Take(MaxJunctionSteps).Select(JunctionStep.From).ToList();
+            await LoadJunctionStepsAsync(context, _metadata.TrainState, cancellationToken);
 
             if (_logsGrid is not null)
                 await _logsGrid.ReloadAsync();
         }
+    }
+
+    /// <summary>
+    /// Reads the run's steps, through the query and the mapping the API's junctionRuns uses, so
+    /// the two show the same rows with the same fields, and at most the API's page of them. Empty
+    /// when the host did not call AddJunctionEvents().
+    /// </summary>
+    /// <remarks>
+    /// <para>While the run is going, a poll reads only what can have changed: the steps after the
+    /// last one held, and every step from the first one still in progress, whose row is updated in
+    /// place when it ends. Once the run has finished, its steps are read in full on the load that
+    /// first sees it finished and on the one after, and are then held as they are, so polling a
+    /// finished run reads no steps and leaves the timeline unrendered.</para>
+    /// <para>One more step than the page is read, so a run with more steps says so rather than
+    /// ending its timeline silently.</para>
+    /// </remarks>
+    private async Task LoadJunctionStepsAsync(
+        IDataContext context,
+        TrainState runState,
+        CancellationToken cancellationToken
+    )
+    {
+        var finished =
+            runState is TrainState.Completed or TrainState.Failed or TrainState.Cancelled;
+        if (!finished)
+            _finishedTimelineReads = 0;
+        else if (_finishedTimelineReads >= 2)
+            return;
+
+        // Held steps before the first one still in progress cannot change; everything from there
+        // on is read again. A finished run is read in full.
+        var firstInProgress = _junctionRuns
+            .Where(s => s.State == JunctionRunState.InProgress)
+            .Select(s => (int?)s.Position)
+            .FirstOrDefault();
+        var kept = finished
+            ? []
+            : _junctionRuns
+                .Where(s => firstInProgress is null || s.Position < firstInProgress)
+                .ToList();
+
+        // Every held step has ended and the run already says it has more than the page: nothing
+        // the timeline shows can change until the run finishes.
+        if (!finished && _moreJunctionSteps && kept.Count == _junctionRuns.Count)
+            return;
+
+        IQueryable<JunctionRun> query = context.JunctionRuns.AsNoTracking().ForRun(MetadataId);
+        if (firstInProgress is { } from && !finished)
+            query = query.Where(r => r.Position >= from);
+        else if (kept.Count > 0)
+        {
+            var after = kept[^1].Position;
+            query = query.Where(r => r.Position > after);
+        }
+
+        var rows = await query
+            .Take(MaxJunctionSteps + 1 - kept.Count)
+            .ToListAsync(cancellationToken);
+        var steps = kept.Concat(rows.Select(JunctionStep.From)).ToList();
+
+        _moreJunctionSteps = steps.Count > MaxJunctionSteps;
+        if (_moreJunctionSteps)
+            steps.RemoveRange(MaxJunctionSteps, steps.Count - MaxJunctionSteps);
+
+        // The same list is kept when nothing changed, so the timeline can skip rendering it again.
+        if (!steps.SequenceEqual(_junctionRuns))
+            _junctionRuns = steps;
+
+        if (finished)
+            _finishedTimelineReads++;
     }
 
     // Through the operations service, as the API's cancelExecution is: a Pending or InProgress

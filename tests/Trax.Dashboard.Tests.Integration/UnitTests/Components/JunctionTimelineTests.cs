@@ -6,6 +6,7 @@ using Trax.Api.DTOs;
 using Trax.Core.Exceptions;
 using Trax.Dashboard.Components.Pages.Data;
 using Trax.Dashboard.Components.Shared;
+using Trax.Dashboard.Services.DashboardSettings;
 using Trax.Dashboard.Tests.Integration.Fakes.Data;
 using Trax.Dashboard.Tests.Integration.Fakes.Services;
 using Trax.Effect.Enums;
@@ -431,6 +432,106 @@ public class JunctionTimelineTests
     }
 
     [Test]
+    public async Task A_finished_runs_timeline_is_read_twice_and_then_neither_read_nor_rendered()
+    {
+        var settings = UseCountingPolls();
+        var runId = await SeedRunAsync(r =>
+        {
+            r.TrainState = TrainState.Completed;
+            r.EndTime = r.StartTime.AddSeconds(10);
+        });
+        await AddStepsAsync(runId, (0, "Load", JunctionRunState.Completed));
+
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p => p.Add(x => x.MetadataId, runId));
+        page.WaitForAssertion(() => Titles(page).Should().Equal("Load"), WaitTimeout);
+        // The first load sees the run finished and the next reads it once more.
+        WaitForPolls(page, settings, settings.Polls + 2);
+        var renders = page.FindComponent<JunctionTimeline>().RenderCount;
+
+        await RenameStepAsync(runId, 0, "Renamed");
+        await AddStepsAsync(runId, (1, "Late", JunctionRunState.Completed));
+        WaitForPolls(page, settings, settings.Polls + 5);
+
+        Titles(page).Should().Equal(["Load"], "a finished run's steps are not read again");
+        page.FindComponent<JunctionTimeline>()
+            .RenderCount.Should()
+            .Be(renders, "an unchanged timeline is not rendered again on each poll");
+    }
+
+    [Test]
+    public async Task A_running_runs_poll_rereads_only_new_steps_and_those_still_in_progress()
+    {
+        var settings = UseCountingPolls();
+        var runId = await SeedRunAsync(r => r.TrainState = TrainState.InProgress);
+        await AddStepsAsync(
+            runId,
+            (0, "Load", JunctionRunState.Completed),
+            (1, "Charge", JunctionRunState.InProgress)
+        );
+
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p => p.Add(x => x.MetadataId, runId));
+        page.WaitForAssertion(() => Titles(page).Should().Equal("Load", "Charge"), WaitTimeout);
+
+        // A step that ended is not read again, so a change to its row is not picked up; the step
+        // that was running is, and so is a new one.
+        await RenameStepAsync(runId, 0, "Renamed");
+        await using (var db = await _data.CreateDbContextAsync(default))
+        {
+            var charge = db.JunctionRuns.Single(r => r.MetadataId == runId && r.Position == 1);
+            charge.State = JunctionRunState.Completed;
+            charge.EndedAt = charge.StartedAt.AddSeconds(1);
+            await db.SaveChanges(default);
+        }
+        await AddStepsAsync(runId, (2, "Ship", JunctionRunState.InProgress));
+
+        page.WaitForAssertion(
+            () =>
+            {
+                Titles(page).Should().Equal("Load", "Charge", "Ship");
+                page.Find(".cs-jt-row[data-position='1'] .cs-jt-bar")
+                    .ClassList.Should()
+                    .Contain("cs-jt--completed");
+            },
+            WaitTimeout
+        );
+        WaitForPolls(page, settings, settings.Polls + 2);
+        Titles(page).Should().Equal("Load", "Charge", "Ship");
+    }
+
+    [Test]
+    public async Task A_running_run_that_passes_500_steps_says_it_shows_the_first_500()
+    {
+        UseCountingPolls();
+        var runId = await SeedRunAsync(r => r.TrainState = TrainState.InProgress);
+        await AddStepsAsync(
+            runId,
+            Enumerable
+                .Range(0, 500)
+                .Select(i => (i, $"Step{i}", JunctionRunState.Completed))
+                .ToArray()
+        );
+
+        var page = _ctx.RenderComponent<MetadataDetailPage>(p => p.Add(x => x.MetadataId, runId));
+        page.WaitForAssertion(
+            () => page.FindAll(".cs-jt-row").Should().HaveCount(500),
+            WaitTimeout
+        );
+        page.FindAll(".cs-jt-truncated").Should().BeEmpty();
+
+        await AddStepsAsync(runId, (500, "Step500", JunctionRunState.Completed));
+
+        page.WaitForAssertion(
+            () =>
+                page.Find(".cs-jt-truncated")
+                    .TextContent.Should()
+                    .Contain("Showing the first 500 steps; this run recorded more."),
+            WaitTimeout
+        );
+        page.FindAll(".cs-jt-row").Should().HaveCount(500);
+        page.Markup.Should().NotContain("Step500");
+    }
+
+    [Test]
     public async Task The_run_page_hints_at_AddJunctionEvents_when_the_run_has_no_steps()
     {
         var runId = await SeedRunAsync(r => r.TrainState = TrainState.Completed);
@@ -507,6 +608,85 @@ public class JunctionTimelineTests
             () => page.Find(".cs-replay-value").TextContent.Should().Be(expected),
             WaitTimeout
         );
+    }
+
+    private CountingPolls UseCountingPolls()
+    {
+        var settings = new CountingPolls();
+        _ctx.Services.AddSingleton<IDashboardSettingsService>(settings);
+        return settings;
+    }
+
+    private static void WaitForPolls(IRenderedFragment page, CountingPolls settings, int count) =>
+        page.WaitForAssertion(
+            () => settings.Polls.Should().BeGreaterThanOrEqualTo(count),
+            WaitTimeout
+        );
+
+    private static IEnumerable<string> Titles(IRenderedFragment page) =>
+        page.FindAll(".cs-jt-row .cs-jt-title").Select(n => n.TextContent.Trim());
+
+    private async Task AddStepsAsync(
+        long runId,
+        params (int Position, string Name, JunctionRunState State)[] steps
+    )
+    {
+        await using var db = await _data.CreateDbContextAsync(default);
+        foreach (var (position, name, state) in steps)
+        {
+            var step = Junction(
+                position,
+                name,
+                state,
+                0,
+                state == JunctionRunState.InProgress ? null : 1
+            );
+            step.MetadataId = runId;
+            db.JunctionRuns.Add(step);
+        }
+        await db.SaveChanges(default);
+    }
+
+    private async Task RenameStepAsync(long runId, int position, string name)
+    {
+        await using var db = await _data.CreateDbContextAsync(default);
+        db.JunctionRuns.Single(r => r.MetadataId == runId && r.Position == position).Name = name;
+        await db.SaveChanges(default);
+    }
+
+    // Polls every 10ms and counts the loads that completed.
+    private sealed class CountingPolls : IDashboardSettingsService
+    {
+        private int _polls;
+
+        public int Polls => Volatile.Read(ref _polls);
+        public TimeSpan PollingInterval => TimeSpan.FromMilliseconds(10);
+        public DateTime LastPollTime { get; private set; } = DateTime.UtcNow;
+        public string? LastPollError { get; private set; }
+        public bool HideAdminTrains => true;
+
+        public Task InitializeAsync() => Task.CompletedTask;
+
+        public Task SetPollingIntervalAsync(int seconds) => Task.CompletedTask;
+
+        public Task SetHideAdminTrainsAsync(bool hide) => Task.CompletedTask;
+
+        public void NotifyPolled()
+        {
+            LastPollTime = DateTime.UtcNow;
+            LastPollError = null;
+            Interlocked.Increment(ref _polls);
+        }
+
+        public void NotifyPollFailed(string message) => LastPollError = message;
+
+        public bool ShowSummaryCards => true;
+        public bool ShowExecutionsChart => true;
+        public bool ShowFailures => true;
+        public bool ShowAvgDuration => true;
+        public bool ShowServerHealth => true;
+
+        public Task SetComponentVisibilityAsync(string key, bool visible) => Task.CompletedTask;
     }
 
     private IRenderedComponent<JunctionTimeline> Render(

@@ -148,8 +148,39 @@
     private List<TimelineRow> _rows = [];
     private int? _attempt;
 
+    // What the rows were last laid out from. A poll of a finished run hands the same steps again,
+    // and then the timeline is not rendered again (see ShouldRender).
+    private IReadOnlyList<JunctionStep>? _laidOutSteps;
+    private bool _laidOutHasMore;
+    private DateTime _laidOutStart;
+    private DateTime? _laidOutEnd;
+    private DateTime? _laidOutNow;
+    private bool _shouldRender = true;
+
+    protected override bool ShouldRender() => _shouldRender;
+
     protected override void OnParametersSet()
     {
+        // Nothing moves with the clock once the run has an end time and no step is in progress, so
+        // the same steps lay out the same rows.
+        var unchanged =
+            ReferenceEquals(Steps, _laidOutSteps)
+            && HasMoreSteps == _laidOutHasMore
+            && Metadata.StartTime == _laidOutStart
+            && Metadata.EndTime == _laidOutEnd
+            && Now == _laidOutNow
+            && Metadata.EndTime is not null
+            && Steps.All(s => s.State != JunctionRunState.InProgress);
+        _shouldRender = !unchanged;
+        if (unchanged)
+            return;
+
+        _laidOutSteps = Steps;
+        _laidOutHasMore = HasMoreSteps;
+        _laidOutStart = Metadata.StartTime;
+        _laidOutEnd = Metadata.EndTime;
+        _laidOutNow = Now;
+
         var now = Now ?? DateTime.UtcNow;
         _attempt = Steps.Select(s => s.Attempt).FirstOrDefault(a => a is not null);
 
