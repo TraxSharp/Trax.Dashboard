@@ -31,6 +31,9 @@ public class AskAfreshActionTests
     private InMemoryDataContextFactory _data = null!;
     private RecordingScheduler _scheduler = null!;
 
+    // What an askAfresh trigger reports as the run its entry still replays.
+    private long? TriggerReplays { get; set; }
+
     [SetUp]
     public void SetUp()
     {
@@ -43,7 +46,10 @@ public class AskAfreshActionTests
         recorder.Respond = (method, args) =>
             method switch
             {
-                nameof(ITraxScheduler.TriggerAsync) => Task.CompletedTask,
+                // The askAfresh overload says what the trigger did; the default returns nothing.
+                nameof(ITraxScheduler.TriggerAsync) => args.Any(a => a is true)
+                    ? Task.FromResult(TriggerResult(replayDecisionsOf: TriggerReplays))
+                    : Task.CompletedTask,
                 nameof(ITraxScheduler.RequeueDeadLetterAsync) => Task.FromResult(
                     new DeadLetterOperationResult(true, 99, "re-queued")
                 ),
@@ -77,6 +83,59 @@ public class AskAfreshActionTests
         var args = _scheduler.CallsTo(nameof(ITraxScheduler.TriggerAsync)).Single();
         args[0].Should().Be("ext-run-now");
         AskedAfresh(args).Should().Be(askAfresh);
+    }
+
+    [TestCase(null, NotificationSeverity.Success, "has been queued for execution")]
+    [TestCase(41L, NotificationSeverity.Warning, "replays the decisions of run 41")]
+    public async Task Run_now_ask_afresh_warns_when_the_run_still_replays(
+        long? replays,
+        NotificationSeverity severity,
+        string detail
+    )
+    {
+        // The dispatcher claimed the queued retry before the trigger reached it, so the trigger
+        // could not clear its replay link.
+        TriggerReplays = replays;
+        var (manifestId, _) = await SeedManifestAsync("still-replays", "ext-still-replays");
+
+        var page = _ctx.RenderComponent<ManifestDetailPage>(p =>
+            p.Add(x => x.ManifestId, manifestId)
+        );
+        page.WaitForElement("button:contains('Run Now')", WaitTimeout);
+        await Click(page, "Run Now, Ask Afresh");
+
+        var notice = _ctx
+            .Services.GetRequiredService<NotificationService>()
+            .Messages.Should()
+            .ContainSingle()
+            .Subject;
+        notice.Severity.Should().Be(severity);
+        notice.Detail.Should().Contain(detail);
+    }
+
+    [Test]
+    public async Task Trigger_selected_ask_afresh_reports_a_manifest_that_still_replays()
+    {
+        TriggerReplays = 41;
+        await SeedManifestAsync("group-a", "ext-a");
+
+        var page = _ctx.RenderComponent<ManifestsPage>();
+        WaitForRow(page, "group-a");
+        await ToggleRow(page, "group-a");
+        await Click(page, "Trigger Selected, Ask Afresh (1)");
+
+        page.WaitForAssertion(
+            () =>
+                _ctx
+                    .Services.GetRequiredService<NotificationService>()
+                    .Messages.Should()
+                    .ContainSingle(m =>
+                        m.Severity == NotificationSeverity.Warning
+                        && m.Detail == "0 queued, 1 already dispatched and still replaying."
+                    ),
+            WaitTimeout
+        );
+        page.Markup.Should().Contain("replays the decisions of run 41 rather than asking afresh");
     }
 
     [TestCase(false)]
@@ -168,7 +227,10 @@ public class AskAfreshActionTests
     )
     {
         var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _scheduler.Respond = (_, _) => pending.Task;
+        _scheduler.Respond = (_, args) =>
+            args.Any(a => a is true)
+                ? pending.Task.ContinueWith(_ => TriggerResult(replayDecisionsOf: null))
+                : pending.Task;
         var (manifestId, _) = await SeedManifestAsync("busy", "ext-busy");
 
         var page = _ctx.RenderComponent<ManifestDetailPage>(p =>
@@ -312,6 +374,15 @@ public class AskAfreshActionTests
         return button.QuerySelector(".rz-button-text") is null
             && button.QuerySelector("i[style*='rotation']") is not null;
     }
+
+    private static ManifestTriggerResult TriggerResult(long? replayDecisionsOf) =>
+        new(
+            7,
+            Created: false,
+            null,
+            AlreadyDispatched: replayDecisionsOf is not null,
+            replayDecisionsOf
+        );
 
     private IEnumerable<string> Messages() =>
         _ctx.Services.GetRequiredService<NotificationService>().Messages.Select(m => m.Detail);

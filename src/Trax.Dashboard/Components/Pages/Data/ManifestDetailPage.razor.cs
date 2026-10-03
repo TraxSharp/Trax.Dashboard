@@ -151,11 +151,28 @@ public partial class ManifestDetailPage
         try
         {
             if (askAfresh)
-                await TraxScheduler.TriggerAsync(
+            {
+                var result = await TraxScheduler.TriggerAsync(
                     _manifest.ExternalId,
                     askAfresh: true,
                     DisposalToken
                 );
+
+                // The dispatcher claimed the queued retry before the trigger could change it, so
+                // that run still replays: say so rather than report an ask-afresh that did not
+                // happen.
+                if (result.ReplayDecisionsOf is { } replays)
+                {
+                    NotificationService.Notify(
+                        NotificationSeverity.Warning,
+                        "Train Queued, Still Replaying",
+                        $"{ShortName(_manifest.Name)} was already being dispatched (WorkQueue ID {result.WorkQueueId}), "
+                            + $"so its run replays the decisions of run {replays} rather than asking afresh.",
+                        duration: 10000
+                    );
+                    return;
+                }
+            }
             else
                 await TraxScheduler.TriggerAsync(_manifest.ExternalId);
 

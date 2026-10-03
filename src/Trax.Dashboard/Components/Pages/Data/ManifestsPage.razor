@@ -201,13 +201,24 @@
 
         var queued = 0;
         var alreadyQueued = 0;
+        var failed = 0;
+        var stillReplaying = 0;
         var failures = new List<string>();
         foreach (var manifest in selected)
         {
             try
             {
                 if (askAfresh)
-                    await Scheduler.TriggerAsync(manifest.ExternalId, askAfresh: true, DisposalToken);
+                {
+                    var result = await Scheduler.TriggerAsync(manifest.ExternalId, askAfresh: true, DisposalToken);
+                    // The dispatcher claimed the queued retry first, so its run still replays.
+                    if (result.ReplayDecisionsOf is { } replays)
+                    {
+                        stillReplaying++;
+                        failures.Add($"{ShortName(manifest.Name)} ({manifest.ExternalId}) was already being dispatched, so its run replays the decisions of run {replays} rather than asking afresh.");
+                        continue;
+                    }
+                }
                 else
                     await Scheduler.TriggerAsync(manifest.ExternalId, DisposalToken);
                 if (hadEntry.Contains(manifest.Id))
@@ -217,6 +228,7 @@
             }
             catch (Exception ex) when (!DisposalToken.IsCancellationRequested)
             {
+                failed++;
                 failures.Add($"{ShortName(manifest.Name)} ({manifest.ExternalId}) was not triggered: {ex.Message}");
             }
         }
@@ -224,8 +236,10 @@
         var message = $"{queued} queued";
         if (alreadyQueued > 0)
             message += $", {alreadyQueued} already queued (that entry now runs as the trigger)";
-        if (failures.Count > 0)
-            message += $", {failures.Count} failed";
+        if (stillReplaying > 0)
+            message += $", {stillReplaying} already dispatched and still replaying";
+        if (failed > 0)
+            message += $", {failed} failed";
         return new EachOutcome(message + ".", failures);
     }, () => _selectedManifests.Clear());
 
