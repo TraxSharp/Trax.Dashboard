@@ -57,6 +57,9 @@ public partial class ManifestDetailPage
     private long _inProgressRuns;
     private List<Exclusion> _exclusions = [];
     private bool _triggering;
+
+    // Which of the two run buttons is busy while _triggering.
+    private bool _triggeringAskAfresh;
     private string? _triggerError;
     private bool _settingReplay;
     private string? _replayError;
@@ -143,6 +146,7 @@ public partial class ManifestDetailPage
 
         _triggerError = null;
         _triggering = true;
+        _triggeringAskAfresh = askAfresh;
 
         try
         {

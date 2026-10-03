@@ -76,6 +76,9 @@ public partial class DeadLetterDetailPage
     private Metadata? _latestFailedRun;
 
     private bool _requeueing;
+
+    // Which of the two re-queue buttons is busy while _requeueing.
+    private bool _requeueingAskAfresh;
     private bool _acknowledging;
     private bool _showAcknowledgeInput;
     private string _acknowledgeNote = "";
@@ -154,6 +157,7 @@ public partial class DeadLetterDetailPage
 
         _actionError = null;
         _requeueing = true;
+        _requeueingAskAfresh = askAfresh;
 
         try
         {

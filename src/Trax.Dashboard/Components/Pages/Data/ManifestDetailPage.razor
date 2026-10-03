@@ -29,7 +29,7 @@
                           Variant="Variant.Outlined"
                           Size="ButtonSize.Small"
                           Click="@(() => TriggerManifest(askAfresh: false))"
-                          IsBusy="@_triggering"
+                          IsBusy="@(_triggering && !_triggeringAskAfresh)"
                           Disabled="@_triggering" />
             <RadzenButton Text="Run Now, Ask Afresh"
                           Icon="psychology_alt"
@@ -38,6 +38,7 @@
                           Size="ButtonSize.Small"
                           title="Run now; if this releases a queued retry, it asks the model afresh instead of replaying the failed run's decisions."
                           Click="@(() => TriggerManifest(askAfresh: true))"
+                          IsBusy="@(_triggering && _triggeringAskAfresh)"
                           Disabled="@_triggering" />
         </RadzenStack>
     }

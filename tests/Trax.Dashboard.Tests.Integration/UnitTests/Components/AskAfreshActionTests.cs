@@ -161,6 +161,76 @@ public class AskAfreshActionTests
         AskedAfresh(args).Should().Be(askAfresh);
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Run_now_shows_the_clicked_button_busy_until_the_trigger_returns(
+        bool askAfresh
+    )
+    {
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _scheduler.Respond = (_, _) => pending.Task;
+        var (manifestId, _) = await SeedManifestAsync("busy", "ext-busy");
+
+        var page = _ctx.RenderComponent<ManifestDetailPage>(p =>
+            p.Add(x => x.ManifestId, manifestId)
+        );
+        page.WaitForElement("button:contains('Run Now')", WaitTimeout);
+        const string plain = "Run Now";
+        const string afresh = "Run Now, Ask Afresh";
+
+        // A busy button shows a spinner in place of its label, so both are found by place.
+        var clicked = ButtonIndex(page, askAfresh ? afresh : plain);
+        var other = ButtonIndex(page, askAfresh ? plain : afresh);
+
+        var click = Click(page, askAfresh ? afresh : plain);
+
+        page.WaitForAssertion(() => IsBusy(page, clicked).Should().BeTrue(), WaitTimeout);
+        IsBusy(page, other).Should().BeFalse("only the clicked button is busy");
+        page.FindAll("button")
+            .ElementAt(other)
+            .HasAttribute("disabled")
+            .Should()
+            .BeTrue("neither runs again while one is in flight");
+
+        pending.SetResult();
+        await click;
+        page.WaitForAssertion(() => IsBusy(page, clicked).Should().BeFalse(), WaitTimeout);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Requeue_on_the_dead_letter_page_shows_the_clicked_button_busy(bool askAfresh)
+    {
+        var pending = new TaskCompletionSource<DeadLetterOperationResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        _scheduler.Respond = (_, _) => pending.Task;
+        var id = await SeedDeadLetterAsync();
+
+        var page = _ctx.RenderComponent<DeadLetterDetailPage>(p => p.Add(x => x.DeadLetterId, id));
+        page.WaitForElement("button:contains('Re-queue')", WaitTimeout);
+        const string plain = "Re-queue";
+        const string afresh = "Re-queue, Ask Afresh";
+
+        // A busy button shows a spinner in place of its label, so both are found by place.
+        var clicked = ButtonIndex(page, askAfresh ? afresh : plain);
+        var other = ButtonIndex(page, askAfresh ? plain : afresh);
+
+        var click = Click(page, askAfresh ? afresh : plain);
+
+        page.WaitForAssertion(() => IsBusy(page, clicked).Should().BeTrue(), WaitTimeout);
+        IsBusy(page, other).Should().BeFalse("only the clicked button is busy");
+        page.FindAll("button")
+            .ElementAt(other)
+            .HasAttribute("disabled")
+            .Should()
+            .BeTrue("neither re-queues again while one is in flight");
+
+        pending.SetResult(new DeadLetterOperationResult(false, null, "refused"));
+        await click;
+        page.WaitForAssertion(() => IsBusy(page, clicked).Should().BeFalse(), WaitTimeout);
+    }
+
     [Test]
     public async Task The_manifest_toggle_sets_replay_on_retry_and_shows_the_new_value()
     {
@@ -224,9 +294,24 @@ public class AskAfreshActionTests
 
     // By the button's label alone, without its icon's ligature text.
     private static Task Click(IRenderedFragment page, string label) =>
+        Button(page, label).ClickAsync(new());
+
+    private static AngleSharp.Dom.IElement Button(IRenderedFragment page, string label) =>
         page.FindAll("button")
-            .First(b => b.QuerySelector(".rz-button-text")?.TextContent.Trim() == label)
-            .ClickAsync(new());
+            .First(b => b.QuerySelector(".rz-button-text")?.TextContent.Trim() == label);
+
+    private static int ButtonIndex(IRenderedFragment page, string label) =>
+        page.FindAll("button")
+            .ToList()
+            .FindIndex(b => b.QuerySelector(".rz-button-text")?.TextContent.Trim() == label);
+
+    // A busy Radzen button shows a spinning icon and no label.
+    private static bool IsBusy(IRenderedFragment page, int index)
+    {
+        var button = page.FindAll("button").ElementAt(index);
+        return button.QuerySelector(".rz-button-text") is null
+            && button.QuerySelector("i[style*='rotation']") is not null;
+    }
 
     private IEnumerable<string> Messages() =>
         _ctx.Services.GetRequiredService<NotificationService>().Messages.Select(m => m.Detail);
