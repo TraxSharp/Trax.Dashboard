@@ -60,10 +60,18 @@
                             }
                             else
                             {
-                                var question = step.QuestionKey ?? (nameWithheld ? "withheld" : step.Name);
-                                <span class="cs-jt-question" title="@question">@question</span>
+                                @* A question or route on a withheld track shows neither its key nor its answer. *@
+                                @if (nameWithheld)
+                                {
+                                    <span class="cs-jt-question cs-jt-answer--withheld">withheld</span>
+                                }
+                                else
+                                {
+                                    var question = step.QuestionKey ?? step.Name;
+                                    <span class="cs-jt-question" title="@question">@question</span>
+                                }
                                 <span>&rarr;</span>
-                                @if (step.AnswerWithheld)
+                                @if (step.AnswerWithheld || nameWithheld)
                                 {
                                     <span class="cs-jt-answer cs-jt-answer--withheld">withheld</span>
                                 }

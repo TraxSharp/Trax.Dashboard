@@ -201,6 +201,91 @@ public class JunctionTimelineTests
     }
 
     [Test]
+    public void A_question_on_a_withheld_track_shows_no_key_and_no_answer()
+    {
+        // As the API maps a question or route asked on a withheld track: its name is withheld,
+        // its key, answer and confidence absent.
+        var step = new JunctionStep(
+            4,
+            JunctionRunKind.Choice,
+            JunctionStep.WithheldName,
+            JunctionRunState.Completed,
+            Start.AddSeconds(4),
+            null,
+            null,
+            null,
+            null,
+            QuestionKey: null,
+            Answer: null,
+            Confidence: null,
+            Replayed: false,
+            Decider: null,
+            AnswerWithheld: false,
+            Attempt: null,
+            NameWithheld: true,
+            TrackPosition: 1
+        );
+
+        var timeline = _ctx.RenderComponent<JunctionTimeline>(p =>
+            p.Add(x => x.Metadata, Run(TrainState.Completed, ended: 10))
+                .Add(x => x.Steps, new[] { step })
+                .Add(x => x.Now, Start.AddMinutes(5))
+        );
+
+        var row = timeline.Find(".cs-jt-row[data-position='4']");
+        row.QuerySelector(".cs-jt-title")!.TextContent.Should().Be("Choice");
+        var question = row.QuerySelector(".cs-jt-question")!;
+        question.TextContent.Should().Be("withheld");
+        question.ClassList.Should().Contain("cs-jt-answer--withheld");
+        question.HasAttribute("title").Should().BeFalse();
+        row.QuerySelector(".cs-jt-answer")!.TextContent.Should().Be("withheld");
+        row.QuerySelector(".cs-jt-confidence").Should().BeNull();
+        row.QuerySelector(".cs-jt-on-track")!.TextContent.Should().Be("on track of step #1");
+        row.TextContent.Should().NotContain("no answer").And.NotContain(JunctionStep.WithheldName);
+    }
+
+    [Test]
+    public void A_question_on_a_withheld_track_hides_a_key_and_answer_it_was_handed()
+    {
+        // The API already drops them; the component does not rely on it.
+        var step = new JunctionStep(
+            4,
+            JunctionRunKind.Route,
+            "MARKER-ROUTE-NAME-3310",
+            JunctionRunState.Completed,
+            Start.AddSeconds(4),
+            null,
+            null,
+            null,
+            null,
+            QuestionKey: "MARKER-QUESTION-KEY-3311",
+            Answer: "MARKER-ANSWER-3312",
+            Confidence: 0.58,
+            Replayed: false,
+            Decider: null,
+            AnswerWithheld: false,
+            Attempt: null,
+            NameWithheld: true,
+            TrackPosition: 1
+        );
+
+        var timeline = _ctx.RenderComponent<JunctionTimeline>(p =>
+            p.Add(x => x.Metadata, Run(TrainState.Completed, ended: 10))
+                .Add(x => x.Steps, new[] { step })
+                .Add(x => x.Now, Start.AddMinutes(5))
+        );
+
+        timeline.Find(".cs-jt-question").TextContent.Should().Be("withheld");
+        timeline.Find(".cs-jt-answer").TextContent.Should().Be("withheld");
+        timeline
+            .Markup.Should()
+            .NotContain("MARKER-ROUTE-NAME-3310")
+            .And.NotContain("MARKER-QUESTION-KEY-3311")
+            .And.NotContain("MARKER-ANSWER-3312")
+            .And.NotContain("58%");
+    }
+
+    [Test]
     public void A_junction_on_a_visible_track_shows_its_name_and_the_track()
     {
         var route = Decision(1, JunctionRunKind.Route, "Acme.Routing.Refund");
