@@ -150,7 +150,7 @@ public class JunctionTimelineTests
 
         var timeline = _ctx.RenderComponent<JunctionTimeline>(p =>
             p.Add(x => x.Metadata, Run(TrainState.Completed, ended: 10))
-                .Add(x => x.Steps, new[] { new JunctionTimelineStep(step, false, null) })
+                .Add(x => x.Steps, new[] { step })
                 .Add(x => x.Now, Start.AddMinutes(5))
         );
 
@@ -176,6 +176,28 @@ public class JunctionTimelineTests
         row.ClassList.Should().Contain("cs-jt-row--on-track");
         row.QuerySelector(".cs-jt-on-track")!.TextContent.Should().Be("on track of step #1");
         timeline.Markup.Should().NotContain("MARKER-JUNCTION-NAME-4471");
+    }
+
+    [Test]
+    public void A_step_marked_name_withheld_hides_a_name_it_was_handed()
+    {
+        // JunctionStep.From already replaces a withheld name; the component does not rely on it.
+        var step = JunctionStep.From(
+            Junction(3, "MARKER-HANDED-NAME-9902", JunctionRunState.Completed, 1, 2)
+        ) with
+        {
+            NameWithheld = true,
+            TrackPosition = 0,
+        };
+
+        var timeline = _ctx.RenderComponent<JunctionTimeline>(p =>
+            p.Add(x => x.Metadata, Run(TrainState.Completed, ended: 10))
+                .Add(x => x.Steps, new[] { step })
+                .Add(x => x.Now, Start.AddMinutes(5))
+        );
+
+        timeline.Find(".cs-jt-title").TextContent.Should().Be("withheld");
+        timeline.Markup.Should().NotContain("MARKER-HANDED-NAME-9902");
     }
 
     [Test]
@@ -410,7 +432,7 @@ public class JunctionTimelineTests
         _ctx.RenderComponent<JunctionTimeline>(p =>
             p.Add(x => x.Metadata, run)
                 // Mapped as the page maps them, through the API's JunctionStep.
-                .Add(x => x.Steps, steps.Select(JunctionTimelineStep.From).ToList())
+                .Add(x => x.Steps, steps.Select(JunctionStep.From).ToList())
                 .Add(x => x.Now, now ?? Start.AddMinutes(5))
         );
 
