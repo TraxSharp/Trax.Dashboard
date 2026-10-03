@@ -42,8 +42,17 @@
                               ButtonStyle="ButtonStyle.Secondary"
                               Variant="Variant.Outlined"
                               Size="ButtonSize.Small"
-                              Click="@RequeueTrain"
-                              IsBusy="@_rerunning"
+                              Click="@(() => RequeueTrain(askAfresh: false))"
+                              IsBusy="@(_rerunning && !_rerunningAskAfresh)"
+                              Disabled="@_rerunning" />
+                <RadzenButton Text="Re-queue, Ask Afresh"
+                              Icon="psychology_alt"
+                              ButtonStyle="ButtonStyle.Secondary"
+                              Variant="Variant.Text"
+                              Size="ButtonSize.Small"
+                              title="Re-queue; the new run asks the model afresh instead of replaying this run's decisions."
+                              Click="@(() => RequeueTrain(askAfresh: true))"
+                              IsBusy="@(_rerunning && _rerunningAskAfresh)"
                               Disabled="@_rerunning" />
             }
         </RadzenStack>

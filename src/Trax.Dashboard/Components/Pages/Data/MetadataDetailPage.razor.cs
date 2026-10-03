@@ -80,6 +80,9 @@ public partial class MetadataDetailPage
         );
 
     private bool _rerunning;
+
+    // Which of the two re-queue buttons is busy while _rerunning.
+    private bool _rerunningAskAfresh;
     private string? _rerunError;
     private bool _cancelling;
     private string? _cancelError;
@@ -242,13 +245,14 @@ public partial class MetadataDetailPage
         }
     }
 
-    private async Task RequeueTrain()
+    private async Task RequeueTrain(bool askAfresh)
     {
         if (_metadata is null)
             return;
 
         _rerunError = null;
         _rerunning = true;
+        _rerunningAskAfresh = askAfresh;
 
         try
         {
@@ -257,14 +261,22 @@ public partial class MetadataDetailPage
             // way: the saved input is checked (nothing saved, a placeholder saved in its place, or
             // masked [TraxSensitive] members would read back as defaults), then queued through the
             // mediator, so the train's OnQueue hook, subject key and input cap apply. When the run
-            // recorded decisions, the new run replays them and takes the tracks this one took.
+            // recorded decisions, the new run replays them and takes the tracks this one took,
+            // unless the operator asked afresh, the API's requeueExecution with askAfresh set:
+            // then the new entry carries no replay link and the run asks every question again.
             OperationResult result;
             // The dashboard is the admin surface, gated as a whole by its host, so it enqueues as
             // trusted infrastructure rather than as a user a train's [TraxAuthorize] can check: a
             // Blazor circuit has no request to carry one. OnQueue, the subject key and the input
             // cap still apply. See docs/0017.
             using (TrustedScope.BeginTrusted("dashboard"))
-                result = await OperationsService.RequeueExecutionAsync(_metadata.Id, DisposalToken);
+                result = askAfresh
+                    ? await OperationsService.RequeueExecutionAsync(
+                        _metadata.Id,
+                        askAfresh: true,
+                        DisposalToken
+                    )
+                    : await OperationsService.RequeueExecutionAsync(_metadata.Id, DisposalToken);
 
             if (!result.Success || result.Id is not { } entryId)
             {
